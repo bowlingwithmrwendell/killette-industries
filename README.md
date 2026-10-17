@@ -29,6 +29,8 @@ hubs ─┬─ members ── member_skills ── member_assignments     ← Ag
 shared governance: audit_log · ai_call_log · ai_reviews · pending_actions · kill_switch_events
 ```
 
+**Value streams:** Insurance, Automotive, Agriculture and **Manufacturing** (injection molding, mold design and tooling, electrical product design, UL/NEC product certification, rapid prototyping). Projects and funders are tagged by value stream, and a funder only matches projects in the streams it funds.
+
 The agents feed each other. A newly ingested member can close a coverage gap, raise a project's grant **team** score, and appear as a candidate on a resource request, all without anyone re-entering data.
 
 ---

@@ -11,6 +11,9 @@ from __future__ import annotations
 
 import re
 
+# The coalition's industry value streams. Projects and funders are tagged with these.
+VALUE_STREAMS = ("INSURANCE", "AUTOMOTIVE", "AGRICULTURE", "MANUFACTURING")
+
 # canonical skill -> (domain, aliases). Aliases are matched case-insensitively
 # as whole words, after punctuation is normalised.
 TAXONOMY: dict[str, tuple[str, list[str]]] = {
@@ -67,8 +70,6 @@ TAXONOMY: dict[str, tuple[str, list[str]]] = {
                                         "autonomous vehicles", "av testing"]),
     "Automotive Safety Standards": ("Automotive", ["iso 26262", "functional safety", "fmvss",
                                                    "nhtsa"]),
-    "Manufacturing Operations": ("Automotive", ["manufacturing", "lean manufacturing",
-                                                "six sigma", "plant operations"]),
     "Automotive Repair": ("Automotive", ["automotive repair", "auto mechanic", "ase",
                                          "diagnostics"]),
     # --- Agriculture
@@ -80,6 +81,21 @@ TAXONOMY: dict[str, tuple[str, list[str]]] = {
                                           "farm to table", "chain of custody"]),
     "Farm Operations": ("Agriculture", ["farm operations", "farming", "ranching",
                                         "farm management"]),
+    # --- Manufacturing
+    "Manufacturing Operations": ("Manufacturing", ["manufacturing", "lean manufacturing",
+                                                   "six sigma", "plant operations"]),
+    "Injection Molding": ("Manufacturing", ["injection molding", "injection moulding",
+                                            "plastic injection molding", "insert molding",
+                                            "insert moulding", "overmolding", "plastics molding"]),
+    "Mold Design & Tooling": ("Manufacturing", ["mold design", "mould design", "tooling",
+                                                "tool and die", "mold making", "mold tooling"]),
+    "Electrical Product Design": ("Manufacturing", ["electrical product design", "wiring devices",
+                                                    "electrical device design", "electrical enclosures"]),
+    "Product Safety Certification": ("Manufacturing", ["ul listing", "ul certification", "ul 514",
+                                                       "product certification", "nec compliance",
+                                                       "product safety certification"]),
+    "Rapid Prototyping": ("Manufacturing", ["rapid prototyping", "3d printing", "additive manufacturing",
+                                            "fdm printing"]),
     # --- Shared operations
     "Supply Chain Management": ("Operations", ["supply chain", "logistics", "inventory forecasting",
                                                "warehousing", "distribution"]),
@@ -113,7 +129,8 @@ _ALIASES_LONGEST_FIRST = sorted(_ALIAS, key=len, reverse=True)
 # trust inside free text ("3 pm", "keep it safe"). Free-text scanning skips
 # them and anything shorter than 3 characters.
 _TEXT_UNSAFE = {"safe", "security", "reporting", "audit", "testing", "distribution", "developer",
-                "cloud", "grants", "claims", "agile", "scrum", "sensors", "infrastructure"}
+                "cloud", "grants", "claims", "agile", "scrum", "sensors", "infrastructure",
+                "tooling"}
 
 
 def domain_of(skill: str) -> str:

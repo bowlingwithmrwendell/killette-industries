@@ -9,7 +9,7 @@ def test_health_and_overview(client):
     assert h["status"] == "ok" and h["status_date"] == "2026-10-17" and not h["agents_enabled"]
     o = client.get("/api/overview").json()
     assert [x["id"] for x in o["hubs"]] == ["HUB-GC", "HUB-GL", "HUB-GP"]
-    assert o["members_active"] == 16 and o["funding_opportunities"] == 8 and o["grants_awarded"] == 2
+    assert o["members_active"] == 16 and o["funding_opportunities"] == 9 and o["grants_awarded"] == 2
     assert client.get("/").status_code == 200 and client.get("/governance").status_code == 200
 
 

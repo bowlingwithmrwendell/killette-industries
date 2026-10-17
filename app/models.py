@@ -97,7 +97,7 @@ class HubProjectRow(Base):
     id: Mapped[str] = mapped_column(String(32), primary_key=True)
     hub_id: Mapped[str] = mapped_column(ForeignKey("hubs.id"), index=True)
     name: Mapped[str] = mapped_column(String(200))
-    value_stream: Mapped[str] = mapped_column(String(40))    # INSURANCE | AUTOMOTIVE | AGRICULTURE
+    value_stream: Mapped[str] = mapped_column(String(40))    # INSURANCE | AUTOMOTIVE | AGRICULTURE | MANUFACTURING
     capability: Mapped[str] = mapped_column(String(120))     # e.g. "Automated Claims Processing"
     summary: Mapped[str] = mapped_column(Text)
     objectives: Mapped[list] = mapped_column(JSON, default=list)

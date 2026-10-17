@@ -188,7 +188,7 @@ const loaders = {
     await overview();
     $("#expertise").innerHTML = `
       <div class="card"><div class="row" style="justify-content:space-between"><h2 style="margin:0">Skill coverage vs project demand</h2>
-        <select id="covVs"><option value="">All value streams</option><option>INSURANCE</option><option>AUTOMOTIVE</option><option>AGRICULTURE</option></select></div>
+        <select id="covVs"><option value="">All value streams</option><option>INSURANCE</option><option>AUTOMOTIVE</option><option>AGRICULTURE</option><option>MANUFACTURING</option></select></div>
         <p class="muted">Only members who consented to profiling count. Supply = hours qualified members already give the skill + their free hours.</p><div id="covBody"></div></div>
       <div class="card"><div class="row" style="justify-content:space-between"><h2 style="margin:0">Members</h2>
         <div class="row"><select id="memHub"><option value="">All hubs</option>${OV.hubs.map(h=>`<option value="${esc(h.id)}">${esc(h.name)}</option>`).join("")}</select>

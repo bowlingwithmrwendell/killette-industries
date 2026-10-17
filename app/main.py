@@ -347,7 +347,7 @@ def withdraw(member_id: str, body: WithdrawIn, s: Session = Depends(get_session)
 
 
 @app.get("/api/expertise/coverage", tags=["1 · Expertise Ingestion"])
-def get_coverage(value_stream: Literal["INSURANCE", "AUTOMOTIVE", "AGRICULTURE"] | None = None,
+def get_coverage(value_stream: Literal["INSURANCE", "AUTOMOTIVE", "AGRICULTURE", "MANUFACTURING"] | None = None,
                  s: Session = Depends(get_session)):
     return repository.coverage(s, value_stream)
 

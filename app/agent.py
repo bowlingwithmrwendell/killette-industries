@@ -102,7 +102,7 @@ def _obj(props: dict, required: list[str] | None = None) -> dict:
 
 _S = {"type": "string"}
 _SKILL = {"type": "string", "description": "Canonical taxonomy skill name, e.g. 'Machine Learning'"}
-_VS = {"type": "string", "enum": ["INSURANCE", "AUTOMOTIVE", "AGRICULTURE"]}
+_VS = {"type": "string", "enum": list(taxonomy.VALUE_STREAMS)}
 
 TOOL_DEFS = {
     "list_members": ("Coalition members (summary): hub, seniority, top skills, available hours. Filter "

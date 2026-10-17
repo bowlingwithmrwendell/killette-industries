@@ -17,7 +17,8 @@ AS_OF = date(2026, 10, 17)
     ("Scrum Master", "Agile Delivery"), ("  SAFe ", "Agile Delivery"), ("RTE", "Agile Delivery"),
     ("PMP", "Project Management"), ("Power BI", "Analytics & BI"), ("ISO 26262", "Automotive Safety Standards"),
     ("FSMA", "Food Traceability"), ("Uniform Guidance", "Regulatory Compliance"),
-    ("Underwater Welding", None), ("Beekeeping", None)])
+    ("Insert Molding", "Injection Molding"), ("UL 514", "Product Safety Certification"),
+    ("Mold Design", "Mold Design & Tooling"), ("Underwater Welding", None), ("Beekeeping", None)])
 def test_normalize_maps_aliases_and_never_guesses(label, expected):
     assert taxonomy.normalize(label) == expected
 
@@ -376,3 +377,27 @@ def test_grounding_check_reports_plain_numbers():
     from app.engines.grounding import is_grounded
     ok, unknown = is_grounded("Request 293,500.00 for 80 farms over 1.50 years.", {"request": "293500.00", "x": 1.5})
     assert not ok and unknown == ["80"]
+
+
+def test_manufacturing_is_a_value_stream_with_its_own_skills():
+    assert "MANUFACTURING" in taxonomy.VALUE_STREAMS
+    mfg = {s for s, (d, _) in taxonomy.TAXONOMY.items() if d == "Manufacturing"}
+    assert {"Injection Molding", "Mold Design & Tooling", "Product Safety Certification",
+            "Electrical Product Design", "Manufacturing Operations"} <= mfg
+    found = {f["skill"] for f in taxonomy.find_in_text("Ran insert molding of contacts for wiring devices.")}
+    assert found == {"Injection Molding", "Electrical Product Design"}
+
+
+def test_a_manufacturing_project_is_assessed_against_a_manufacturing_funder():
+    opp = {**OPP, "id": "FO-M", "value_streams": ["MANUFACTURING"], "requires_sam": False,
+           "focus_keywords": ["injection molding", "tooling", "small business"], "cost_share_pct": D("0")}
+    proj = {**PROJ, "id": "P-MFG", "value_stream": "MANUFACTURING",
+            "keywords": ["injection molding", "tooling", "electrical"], "matching_funds": "0"}
+    a = grants.assess(opp, proj, LINES, {**COALITION, "entity_type": "LLC", "sam_registered": False},
+                      [True], AS_OF)
+    assert a["eligibility"]["eligible"] is False                       # LLC not in OPP's list
+    a = grants.assess({**opp, "eligible_entities": ["LLC"]}, proj, LINES,
+                      {**COALITION, "entity_type": "LLC"}, [True], AS_OF)
+    assert a["eligibility"]["eligible"] and a["alignment"]["matched_keywords"] == ["injection molding", "tooling"]
+    vs = next(c for c in a["eligibility"]["checks"] if c["check"] == "value_stream")
+    assert vs["passed"] and "MANUFACTURING" in vs["detail"]
