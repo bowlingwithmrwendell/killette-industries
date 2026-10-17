@@ -66,6 +66,8 @@
   .num{font-variant-numeric:tabular-nums}
   .examples button{margin:4px 6px 0 0}
   .draft{border:2px dashed var(--amber);background:#fffaf0}
+  .answer.md-out{white-space:normal}
+  .answer.md-out table{margin:6px 0}
   .why{font-size:.8rem;color:var(--muted)}
   .rv{border:1px solid var(--line);border-radius:10px;padding:14px;margin-bottom:12px}
   .rv.PENDING_REVIEW{border-left:4px solid var(--amber)} .rv.APPROVED,.rv.APPROVED_WITH_EDITS{border-left:4px solid var(--green)} .rv.REJECTED{border-left:4px solid var(--red)}
@@ -135,11 +137,17 @@ const why = e => e ? `<div class="why"><b>${esc(e.formula)}</b><br>${esc(e.reaso
 function md(text){
   if(text == null) return "";
   const lines = String(text).split("\n"); let out = "", tbl = [];
-  const flush = () => { if(!tbl.length) return; const rows = tbl.filter(l=>!/^\|\s*-/.test(l)).map(l=>l.replace(/^\||\|$/g,"").split("|").map(c=>c.trim()));
+  const flush = () => { if(!tbl.length) return; const rows = tbl.filter(l=>!/^\|[\s:|-]+$/.test(l)).map(l=>l.replace(/^\||\|$/g,"").split("|").map(c=>c.trim()));
     out += `<div class="table-wrap md"><table><thead><tr>${rows[0].map(c=>`<th>${inline(c)}</th>`).join("")}</tr></thead><tbody>${rows.slice(1).map(r=>`<tr>${r.map(c=>`<td>${inline(c)}</td>`).join("")}</tr>`).join("")}</tbody></table></div>`; tbl = []; };
-  const inline = s => esc(s).replace(/\*\*(.+?)\*\*/g,"<b>$1</b>").replace(/(^|\s)_(\S.*?)_(?=\s|$)/g,"$1<i>$2</i>");
-  for(const l of lines){ if(l.startsWith("|")){ tbl.push(l); continue; } flush();
-    if(l.startsWith("- ")) out += `<div>• ${inline(l.slice(2))}</div>`; else if(l.trim()) out += `<p style="margin:6px 0">${inline(l)}</p>`; }
+  const inline = s => esc(s).replace(/\*\*(.+?)\*\*/g,"<b>$1</b>").replace(/`([^`]+)`/g,"<code>$1</code>").replace(/(^|\s)_(\S.*?)_(?=\s|$)/g,"$1<i>$2</i>");
+  for(const raw of lines){ const l = raw.trimEnd(); if(l.trim().startsWith("|")){ tbl.push(l.trim()); continue; } flush();
+    const h = l.match(/^(#{1,4})\s+(.*)$/), num = l.match(/^\s*(\d+)[.)]\s+(.*)$/), bul = l.match(/^\s*[-*]\s+(.*)$/);
+    if(h) out += `<p style="margin:12px 0 4px;font-weight:700;font-size:${h[1].length <= 2 ? "1.05rem" : ".98rem"}">${inline(h[2])}</p>`;
+    else if(num) out += `<div style="margin:3px 0 3px 4px">${num[1]}. ${inline(num[2])}</div>`;
+    else if(bul) out += `<div style="margin:3px 0 3px 4px">• ${inline(bul[1])}</div>`;
+    else if(/^\s*>\s?/.test(l)) out += `<div class="callout" style="margin:8px 0">${inline(l.replace(/^\s*>\s?/,"").replace(/^\[!\w+\]\s*/,""))}</div>`;
+    else if(/^\s*(-{3,}|\*{3,})\s*$/.test(l)) out += `<hr style="border:0;border-top:1px solid var(--line);margin:10px 0">`;
+    else if(l.trim()) out += `<p style="margin:6px 0">${inline(l)}</p>`; }
   flush(); return out;
 }
 
@@ -639,7 +647,7 @@ async function openRequestForm(){
 // ====================================================================== Reviews
 function draftBlock(id, text, grounded, unverified){
   return `<div class="callout AMBER"><b>DRAFT · PENDING_REVIEW (#${esc(id)}).</b> This AI output is not validated. A named human must approve, edit or reject it on the Human review tab before it is published.</div>
-    <div class="answer draft">${esc(text)}</div>
+    <div class="answer md-out draft">${md(text)}</div>
     <div class="gov">Numeric grounding: ${grounded ? "✅ every number traced to an engine result" : "⚠️ unverified numbers: " + esc((unverified||[]).join(", ")) + " (cannot be approved unchanged)"}</div>
     <div class="row" style="margin-top:8px"><button class="btn goReview">Review it now</button></div>`;
 }
@@ -654,7 +662,7 @@ async function drawReviews(){
     <div class="row" style="justify-content:space-between"><b>#${esc(r.id)} · ${esc(r.agent)} · ${esc(r.kind.replace(/_/g," "))}${r.subject_id ? " · " + esc(r.subject_id) : ""}</b>${chip(r.status)}</div>
     <div class="muted">Prompt: ${esc(r.prompt.slice(0,220))}${r.requested_by ? " · requested by " + esc(r.requested_by) : ""} · ${esc(r.model)} · tools: ${esc(r.tools_used.join(", ") || "none")}</div>
     <div class="gov">${r.grounded ? "✅ All numbers traced to engine results" : "⚠️ Unverified numbers: " + esc(r.unverified_numbers.join(", ")) + ". Edit them out or reject."}</div>
-    <div class="answer ${r.status === "PENDING_REVIEW" ? "draft" : ""}" style="margin-top:8px">${esc(r.ai_output)}</div>
+    <div class="answer md-out ${r.status === "PENDING_REVIEW" ? "draft" : ""}" style="margin-top:8px">${md(r.ai_output)}</div>
     ${r.status === "PENDING_REVIEW" ? `
       <textarea class="rvEdit" style="margin-top:8px" placeholder="Optional: edit the text here, then choose Edit & approve">${esc(r.ai_output)}</textarea>
       <input class="rvReason" placeholder="Reason (required to reject)" style="width:100%;margin-top:6px">
@@ -662,7 +670,7 @@ async function drawReviews(){
         <button class="btn gold" data-d="approve" ${r.grounded ? "" : "disabled title='Unverified numbers: edit or reject'"}>Approve</button>
         <button class="btn" data-d="edit">Edit &amp; approve</button>
         <button class="btn ghost" data-d="reject">Reject</button><span class="rvMsg muted"></span></div>` : `
-      ${r.status === "APPROVED_WITH_EDITS" ? `<div class="muted" style="margin-top:8px">Published (edited) text:</div><div class="answer">${esc(r.final_output)}</div>` : ""}
+      ${r.status === "APPROVED_WITH_EDITS" ? `<div class="muted" style="margin-top:8px">Published (edited) text:</div><div class="answer md-out">${md(r.final_output)}</div>` : ""}
       <div class="gov">${esc(r.status.replace(/_/g," ").toLowerCase())} by <b>${esc(r.reviewer)}</b> at ${esc((r.decided_at||"").replace("T"," ").slice(0,19))} UTC${r.reason ? " · reason: " + esc(r.reason) : ""}</div>`}
   </div>`).join("") || `<p class="muted">Nothing here.</p>`;
   $$("#rvList button[data-d]").forEach(b => b.onclick = async () => {
