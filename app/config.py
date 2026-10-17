@@ -78,3 +78,12 @@ AI_ENABLED = _bool("AI_ENABLED", True)
 ADMIN_TOKEN = os.environ.get("ADMIN_TOKEN", "")
 # If set, every review decision and every approval must carry header X-Reviewer-Token.
 REVIEWER_TOKEN = os.environ.get("REVIEWER_TOKEN", "")
+
+# --- Access: the public site vs the internal tools ----------------------------------
+# The landing page (/), /health and /static/brand/* are public. Everything else (the
+# agents console, governance page, API and API docs) is an internal tool and requires
+# a username and password (HTTP Basic). Fails closed: with CONSOLE_AUTH on and no
+# CONSOLE_PASSWORD set, the tools refuse every request.
+CONSOLE_AUTH = _bool("CONSOLE_AUTH", True)
+CONSOLE_USERNAME = os.environ.get("CONSOLE_USERNAME", "ki")
+CONSOLE_PASSWORD = os.environ.get("CONSOLE_PASSWORD", "")

@@ -9,6 +9,7 @@ os.environ["DATABASE_URL"] = f"sqlite:///{_tmp}/test.db"
 os.environ["ANTHROPIC_API_KEY"] = ""
 os.environ["SLACK_WEBHOOK_URL"] = ""
 os.environ["STATUS_DATE"] = "2026-10-17"
+os.environ["CONSOLE_AUTH"] = "false"   # the access gate has its own tests
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 import pytest  # noqa: E402

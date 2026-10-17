@@ -38,5 +38,10 @@ services:
         value: "1024"
       - key: ADMIN_TOKEN
         sync: false          # set in the dashboard to enable the runtime kill switch
+      # --- Access: the landing page is public; the console, API and docs need a login ---
+      - key: CONSOLE_USERNAME
+        value: ki
+      - key: CONSOLE_PASSWORD
+        sync: false          # set in the dashboard; until it is set the tools stay locked
       - key: REVIEWER_TOKEN
         sync: false          # optional

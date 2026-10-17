@@ -49,7 +49,7 @@ app = FastAPI(
                  "Fictional demo data."),
     lifespan=lifespan,
 )
-app.mount("/static", StaticFiles(directory=STATIC), name="static")
+app.mount("/static/brand", StaticFiles(directory=STATIC / "brand"), name="brand")
 app.add_middleware(CORSMiddleware, allow_origins=config.CORS_ORIGINS,
                    allow_methods=["GET", "POST", "PUT"], allow_headers=["Content-Type"])
 
@@ -110,6 +110,60 @@ class _TooLarge(Exception):
 
 
 app.add_middleware(RequestSizeLimit)
+
+
+PUBLIC_PATHS = {"/", "/health", "/favicon.ico"}
+PUBLIC_PREFIXES = ("/static/brand/",)
+
+
+class ConsoleAccess:
+    """The landing page is public; the agents console, API and docs are internal tools
+    behind HTTP Basic auth. Fails closed when no password is configured."""
+
+    def __init__(self, app):
+        self.app = app
+
+    async def __call__(self, scope, receive, send):
+        if scope["type"] != "http" or not config.CONSOLE_AUTH:
+            return await self.app(scope, receive, send)
+        path = scope.get("path", "")
+        if path in PUBLIC_PATHS or path.startswith(PUBLIC_PREFIXES):
+            return await self.app(scope, receive, send)
+        if scope.get("method") == "OPTIONS":
+            return await self.app(scope, receive, send)
+        if not config.CONSOLE_PASSWORD:
+            return await self._send(send, 503, "Killette Industries tools are locked: no CONSOLE_PASSWORD is "
+                                               "configured on this server.", basic=False)
+        headers = dict(scope.get("headers") or [])
+        if self._authorized(headers.get(b"authorization", b"").decode("latin-1")):
+            return await self.app(scope, receive, send)
+        return await self._send(send, 401, "Sign in to use the Killette Industries tools.", basic=True)
+
+    @staticmethod
+    def _authorized(header: str) -> bool:
+        import base64
+        import hmac
+        if not header.lower().startswith("basic "):
+            return False
+        try:
+            user, _, pw = base64.b64decode(header[6:].strip()).decode("utf-8").partition(":")
+        except Exception:
+            return False
+        ok_user = hmac.compare_digest(user.encode(), config.CONSOLE_USERNAME.encode())
+        ok_pw = hmac.compare_digest(pw.encode(), config.CONSOLE_PASSWORD.encode())
+        return ok_user and ok_pw
+
+    @staticmethod
+    async def _send(send, status, message, basic):
+        resp = JSONResponse({"detail": message}, status_code=status)
+        headers = list(resp.raw_headers)
+        if basic:
+            headers.append((b"www-authenticate", b'Basic realm="Killette Industries tools", charset="UTF-8"'))
+        await send({"type": "http.response.start", "status": status, "headers": headers})
+        await send({"type": "http.response.body", "body": resp.body})
+
+
+app.add_middleware(ConsoleAccess)
 
 
 def visitor(request: Request) -> str:

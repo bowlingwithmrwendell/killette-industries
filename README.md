@@ -158,8 +158,8 @@ uvicorn app.main:app --reload   # SQLite, seeded on start
 python -m pytest -q             # no API key needed
 ```
 
-* Landing page at `/` (the Killette Industries site, with a downloadable one-page overview).
-* Agents console at `/console`, with tabs for each agent, Human review, and Approvals & audit.
+* **Public:** the landing page at `/` (the Killette Industries join-us site, with a downloadable one-page overview).
+* **Internal tools (login required):** the agents console at `/console`, the governance scorecard, the API and `/docs`. Set `CONSOLE_USERNAME` and `CONSOLE_PASSWORD`; with no password the tools stay locked.
 * Governance scorecard at `/governance`.
 * Interactive API docs at `/docs`.
 

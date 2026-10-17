@@ -15,7 +15,7 @@ def test_health_and_overview(client):
     assert client.get("/console").status_code == 200 and client.get("/governance").status_code == 200
     for asset in ("logo.png", "banner.jpg", "killette-industries-overview.jpg"):
         assert client.get(f"/static/brand/{asset}").status_code == 200
-    assert 'href="/console"' in home.text
+    assert 'href="/console"' not in home.text      # the public site does not link to the tools
 
 
 # =====================================================================================
@@ -400,3 +400,44 @@ def test_meta_lists_form_choices(client):
     m = client.get("/api/meta").json()
     assert "MANUFACTURING" in m["value_streams"] and "CORPORATION" in m["entity_types"]
     assert "Injection Molding" in m["skills"]
+
+
+# =====================================================================================
+# Access: public landing page, password-protected tools
+# =====================================================================================
+
+import base64  # noqa: E402
+
+from app import config as _config  # noqa: E402
+
+
+def _basic(user, pw):
+    return {"Authorization": "Basic " + base64.b64encode(f"{user}:{pw}".encode()).decode()}
+
+
+def test_landing_is_public_and_tools_need_a_login(client, monkeypatch):
+    monkeypatch.setattr(_config, "CONSOLE_AUTH", True)
+    monkeypatch.setattr(_config, "CONSOLE_USERNAME", "ki")
+    monkeypatch.setattr(_config, "CONSOLE_PASSWORD", "s3cret-pass")
+    for public in ("/", "/health", "/static/brand/logo.png"):
+        assert client.get(public).status_code == 200, public
+    home = client.get("/").text
+    assert "/console" not in home and "onrender" not in home and "github" not in home
+    for internal in ("/console", "/governance", "/docs", "/openapi.json", "/api/overview", "/api/reviews"):
+        r = client.get(internal)
+        assert r.status_code == 401, internal
+        assert r.headers["www-authenticate"].startswith("Basic")
+    assert client.get("/console", headers=_basic("ki", "wrong")).status_code == 401
+    assert client.get("/console", headers=_basic("someone", "s3cret-pass")).status_code == 401
+    assert client.get("/console", headers=_basic("ki", "s3cret-pass")).status_code == 200
+    assert client.post("/api/agents/grants/ask", json={"question": "hello?"}).status_code == 401
+    # console pages are not reachable through the static mount either
+    assert client.get("/static/index.html").status_code in (401, 404)
+
+
+def test_tools_fail_closed_without_a_password(client, monkeypatch):
+    monkeypatch.setattr(_config, "CONSOLE_AUTH", True)
+    monkeypatch.setattr(_config, "CONSOLE_PASSWORD", "")
+    assert client.get("/").status_code == 200
+    r = client.get("/console", headers=_basic("ki", ""))
+    assert r.status_code == 503 and "locked" in r.text
