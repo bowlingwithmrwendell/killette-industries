@@ -218,8 +218,11 @@ const loaders = {
     const [apps, opps] = await Promise.all([api("/api/grants/applications"), api("/api/grants/opportunities")]);
     $("#grants").innerHTML = `
       <div class="card"><div class="row" style="justify-content:space-between"><h2 style="margin:0">Align a hub project with funders</h2>
-        <select id="gProj">${projects().map(p=>`<option value="${esc(p.id)}">${esc(p.name)} (${esc(p.hub)})</option>`).join("")}</select></div>
-        <p class="muted">Eligibility is pass/fail per rule; alignment = focus 40 + team 25 + budget fit 20 + timeline 15. Funders are fictional.</p><div id="gMatch"></div></div>
+        <div class="row"><select id="gProj">${projects().map(p=>`<option value="${esc(p.id)}" ${p.id===window.__pickProject?"selected":""}>${esc(p.name)} (${esc(p.hub)})</option>`).join("")}</select>
+        <button class="btn ghost small" id="gExport">Save project (JSON)</button></div></div>
+        <div class="row" style="margin-top:10px"><button class="btn gold small" id="gAddProj">Add project</button><button class="btn ghost small" id="gImport">Import saved project</button><button class="btn ghost small" id="gAddOpp">Add funding opportunity</button></div>
+        <p class="muted">Eligibility is pass/fail per rule; alignment = focus 40 + team 25 + budget fit 20 + timeline 15. Demo funders are fictional. The sandbox resets when it restarts, so save projects you add.</p><div id="gMatch"></div></div>
+      <div class="card hidden" id="gForm"></div>
       <div class="card"><h2>Applications</h2>${table([["ID",x=>`<b>${esc(x.id)}</b>`],["Project",x=>`${esc(x.project)}<div class="muted">${esc(hubName(x.hub_id))}</div>`],
         ["Funder",x=>`${esc(x.program)}<div class="muted">${esc(x.funder)}</div>`],["Status",x=>chip(x.status)],["Awarded",x=>x.awarded_amount?money(x.awarded_amount):"—"]], apps, x=>`class="click" data-app="${esc(x.id)}"`)}
         <p class="muted">Select an application for its proposal packet, or an awarded grant for its milestone report.</p></div>
@@ -228,6 +231,12 @@ const loaders = {
         ["Award range",x=>`${money(x.min_award)} – ${money(x.max_award)}`],["Deadline",x=>`${esc(x.deadline)}<div class="muted">${x.days_to_deadline < 0 ? "closed" : esc(x.days_to_deadline) + " days"}</div>`],
         ["Streams",x=>esc(x.value_streams.join(", "))],["Eligible entities",x=>esc(x.eligible_entities.join(", "))],["Cost share",x=>esc(x.cost_share_pct)+"%"],["SAM",x=>x.requires_sam?"Required":"—"]], opps)}</div>`;
     $("#gProj").onchange = drawMatch; drawMatch();
+    $("#gAddProj").onclick = () => openProjectForm();
+    $("#gImport").onclick = openImport;
+    $("#gAddOpp").onclick = openOppForm;
+    $("#gExport").onclick = async () => { const pid = $("#gProj").value; const j = await api(`/api/projects/${pid}/export`);
+      const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob([JSON.stringify(j, null, 2)], {type:"application/json"}));
+      a.download = `${pid}-${j.name.replace(/[^A-Za-z0-9]+/g,"-").toLowerCase()}.json`; a.click(); };
     $$("#grants tr[data-app]").forEach(tr => tr.onclick = () => openApplication(tr.dataset.app, apps.find(a=>a.id===tr.dataset.app).status));
   },
 
@@ -377,7 +386,8 @@ Vehicle Security Lead | Wolverine Mobility | Automotive | 2015 |</textarea></lab
 // ====================================================================== Grants helpers
 async function drawMatch(){
   const pid = $("#gProj").value; const r = await api(`/api/grants/projects/${pid}/opportunities`);
-  $("#gMatch").innerHTML = `<p class="muted">Coalition profile: ${esc(r.coalition.entity_type)} · SAM ${r.coalition.sam_registered === true || r.coalition.sam_registered === "True" ? "registered" : "not registered"} · indirect rate ${esc(r.coalition.indirect_rate_pct)}%</p>` +
+  const ap = r.applicant;
+  $("#gMatch").innerHTML = `<p class="muted"><b>Applicant:</b> ${esc(ap.name)} (${ap.source === "project" ? "this project's own applicant" : "the coalition"}) · ${esc(ap.entity_type)} · SAM ${ap.sam_registered ? "registered" : "not registered"}${ap.employees != null ? " · " + esc(ap.employees) + " employees" : ""}${ap.us_owned_pct != null ? " · " + esc(ap.us_owned_pct) + "% US-owned" : ""} · indirect rate ${esc(ap.indirect_rate_pct)}%</p>` +
     table([["Opportunity",x=>`<b>${esc(x.program)}</b><div class="muted">${esc(x.funder)} · due ${esc(x.deadline)}</div>`],
       ["Score",x=>`<b class="num">${esc(x.alignment.score)}</b><div class="why">focus ${esc(x.alignment.components.focus)} · team ${esc(x.alignment.components.team)} · budget ${esc(x.alignment.components.budget_fit)} · time ${esc(x.alignment.components.timeline)}</div>`],
       ["Recommendation",x=>chip(x.alignment.recommendation)],["Request",x=>`${money(x.budget.request)}<div class="why">need ${money(x.budget.total_need)} · cost share ${money(x.budget.cost_share_required)}</div>`],
@@ -431,6 +441,137 @@ async function openApplication(id, status){
   if($("#propSub")) $("#propSub").onclick = async () => { const who = prompt("Your name (requester):"); if(!who) return;
     try{ const a = await post("/api/actions", {action_type:"SUBMIT_GRANT_APPLICATION", payload:{application_id:id}, requested_by: who});
       alert(`Queued as action #${a.id}. A named approver must approve it on the Approvals tab.`); loaded.approvals = false; }catch(err){ alert(err.message); } };
+}
+
+// ====================================================================== Add project / funder / import
+let META = null;
+async function meta(){ if(!META) META = await api("/api/meta"); return META; }
+const lines = id => $(id).value.split("\n").map(l=>l.trim()).filter(Boolean);
+const cells = l => l.split("|").map(x=>x.trim());
+
+async function openProjectForm(){
+  const m = await meta(); const f = $("#gForm"); f.classList.remove("hidden");
+  f.innerHTML = `<h2>Add project</h2>
+    <p class="muted">Bring a member's own work into the coalition. Leave the applicant section off to apply as the coalition; turn it on when a member's company (an LLC, say) is the applicant, which SBIR-style programs require.</p>
+    <div class="form">
+      <label class="f">Project name<input id="pfName" placeholder="Integrated Branch-Circuit Rough-In Box"></label>
+      <label class="f">Hub<select id="pfHub">${OV.hubs.map(h=>`<option value="${esc(h.id)}">${esc(h.name)}</option>`).join("")}</select></label>
+      <label class="f">Value stream<select id="pfVs">${m.value_streams.map(v=>`<option ${v==="MANUFACTURING"?"selected":""}>${v}</option>`).join("")}</select></label>
+      <label class="f">Capability<input id="pfCap" placeholder="Product-to-Production"></label>
+      <label class="f">Start date<input id="pfStart" type="date" value="2026-12-01"></label>
+      <label class="f">End date<input id="pfEnd" type="date" value="2027-11-30"></label>
+      <label class="f">Matching funds pledged ($)<input id="pfMatch" value="0"></label>
+      <label class="f">Lead member ID (optional)<input id="pfLead" placeholder="M-001"></label>
+      <label class="f wide">Summary<textarea id="pfSum" placeholder="What the project does and why it matters."></textarea></label>
+      <label class="f wide">Objectives — one per line<textarea id="pfObj"></textarea></label>
+      <label class="f">Who benefits<input id="pfBen" placeholder="Electricians, builders, homeowners"></label>
+      <label class="f">Keywords (comma-separated)<input id="pfKw" placeholder="injection molding, tooling, product safety"></label>
+      <label class="f wide">IP / patent status<input id="pfIp" placeholder="Patent pending, application filed …"></label>
+      <label class="f wide">Budget — one per line: CATEGORY | amount  (categories: ${m.budget_categories.join(", ")})
+        <textarea id="pfBud">PERSONNEL | 90000
+CONTRACTUAL | 45000
+EQUIPMENT | 40000
+OTHER | 15000</textarea></label>
+      <label class="f wide">Milestones — one per line: name | due date (YYYY-MM-DD)
+        <textarea id="pfMs">Design freeze | 2027-01-29
+Mold built and T1 samples | 2027-04-30
+Safety listing passed | 2027-07-30
+Pilot run | 2027-10-29</textarea></label>
+      <label class="f wide">Skill needs — one per line: skill | minimum level 1-5 | hours per week
+        <textarea id="pfNeeds">Injection Molding | 4 | 8
+Mold Design & Tooling | 3 | 6
+Product Safety Certification | 3 | 4</textarea>
+        <span class="why">Skills: ${esc(m.skills.join(" · "))}</span></label>
+      <label class="wide row"><input type="checkbox" id="pfApOn"> A member's company is the applicant (not the coalition)</label>
+      <div class="wide form hidden" id="pfAp">
+        <label class="f">Company name<input id="apName" placeholder="Killette Innovations LLC"></label>
+        <label class="f">Entity type<select id="apType">${m.entity_types.map(e=>`<option ${e==="LLC"?"selected":""}>${e}</option>`).join("")}</select></label>
+        <label class="f">Employees<input id="apEmp" type="number" min="0" value="1"></label>
+        <label class="f">US ownership %<input id="apOwn" type="number" min="0" max="100" value="100"></label>
+        <label class="row"><input type="checkbox" id="apSam"> Registered in SAM.gov (has a UEI)</label>
+        <label class="row"><input type="checkbox" id="apPi" checked> Lead researcher is employed by the company</label>
+      </div>
+    </div>
+    <div class="row" style="margin-top:10px"><button class="btn gold" id="pfSave">Create project</button><span id="pfMsg" class="muted"></span></div>`;
+  f.scrollIntoView({behavior:"smooth"});
+  $("#pfApOn").onchange = e => $("#pfAp").classList.toggle("hidden", !e.target.checked);
+  $("#pfSave").onclick = async () => {
+    const body = { hub_id:$("#pfHub").value, name:$("#pfName").value.trim(), value_stream:$("#pfVs").value, capability:$("#pfCap").value.trim(),
+      summary:$("#pfSum").value.trim(), objectives:lines("#pfObj"), beneficiaries:$("#pfBen").value.trim(),
+      keywords:$("#pfKw").value.split(",").map(x=>x.trim()).filter(Boolean), start_date:$("#pfStart").value, end_date:$("#pfEnd").value,
+      matching_funds:$("#pfMatch").value.trim() || "0", lead_member_id:$("#pfLead").value.trim() || null, ip_status:$("#pfIp").value.trim(),
+      budget_lines: lines("#pfBud").map(l=>{ const c = cells(l); return {category:(c[0]||"").toUpperCase(), budgeted:(c[1]||"0").replace(/[$,]/g,"")}; }),
+      milestones: lines("#pfMs").map(l=>{ const c = cells(l); return {name:c[0], due_date:c[1]}; }),
+      skill_needs: lines("#pfNeeds").map(l=>{ const c = cells(l); return {skill:c[0], min_level:+(c[1]||3), hours_per_week:c[2]||"0"}; }),
+      applicant: $("#pfApOn").checked ? {name:$("#apName").value.trim(), entity_type:$("#apType").value, employees:+$("#apEmp").value,
+        us_owned_pct:+$("#apOwn").value, sam_registered:$("#apSam").checked, pi_employed:$("#apPi").checked} : null,
+      created_by:"console user" };
+    try{ const p = await post("/api/projects", body); await afterProjectCreated(p); }
+    catch(err){ $("#pfMsg").textContent = err.message; }
+  };
+}
+
+async function afterProjectCreated(p){
+  window.__pickProject = p.id; OV = null; loaded.grants = false; loaded.coalition = false; loaded.expertise = false; loaded.resources = false;
+  await overview(true); await loaders.grants(); loaded.grants = true;
+  $("#gMatch").insertAdjacentHTML("beforebegin", `<div class="callout GREEN">Created <b>${esc(p.id)}</b> — ${esc(p.name)}. Use <b>Save project (JSON)</b> to keep a copy; the sandbox resets when it restarts.</div>`);
+}
+
+function openImport(){
+  const f = $("#gForm"); f.classList.remove("hidden");
+  f.innerHTML = `<h2>Import a saved project</h2><p class="muted">Choose a file you saved with <b>Save project (JSON)</b>, or paste its contents.</p>
+    <input type="file" id="imFile" accept=".json,application/json">
+    <textarea id="imText" style="margin-top:8px;min-height:140px" placeholder='{"hub_id": "HUB-GC", "name": "…", …}'></textarea>
+    <div class="row" style="margin-top:10px"><button class="btn gold" id="imGo">Import</button><span id="imMsg" class="muted"></span></div>`;
+  f.scrollIntoView({behavior:"smooth"});
+  $("#imFile").onchange = async e => { const file = e.target.files[0]; if(file) $("#imText").value = await file.text(); };
+  $("#imGo").onclick = async () => {
+    let body; try{ body = JSON.parse($("#imText").value); }catch{ $("#imMsg").textContent = "That isn't valid JSON."; return; }
+    try{ await afterProjectCreated(await post("/api/projects", body)); }catch(err){ $("#imMsg").textContent = err.message; }
+  };
+}
+
+async function openOppForm(){
+  const m = await meta(); const f = $("#gForm"); f.classList.remove("hidden");
+  const checks = (name, opts, on) => opts.map(o=>`<label class="row" style="color:var(--text)"><input type="checkbox" name="${name}" value="${o}" ${on.includes(o)?"checked":""}> ${o}</label>`).join("");
+  f.innerHTML = `<h2>Add funding opportunity</h2>
+    <p class="muted">Enter the funder's rules from its solicitation. Leave the small-business fields blank if the funder has no such rule; fill them in for SBIR-style programs.</p>
+    <div class="form">
+      <label class="f">Funder<input id="ofFunder" placeholder="Agency or foundation"></label>
+      <label class="f">Program / topic<input id="ofProg"></label>
+      <label class="f">Type<select id="ofType"><option>FEDERAL</option><option>STATE</option><option>PRIVATE</option></select></label>
+      <label class="f">Deadline<input id="ofDue" type="date"></label>
+      <label class="f">Minimum award ($)<input id="ofMin" value="50000"></label>
+      <label class="f">Maximum award ($)<input id="ofMax" value="300000"></label>
+      <label class="f">Period of performance (months)<input id="ofMonths" type="number" value="12"></label>
+      <label class="f">Reporting<select id="ofRep"><option>QUARTERLY</option><option>SEMIANNUAL</option><option>MONTHLY</option></select></label>
+      <label class="f">Cost share required (%)<input id="ofCs" value="0"></label>
+      <label class="f">Indirect rate cap (%) — blank if none<input id="ofCap"></label>
+      <label class="f wide">Focus keywords (comma-separated)<input id="ofKw" placeholder="injection molding, manufacturing, product safety"></label>
+      <div class="f"><span>Eligible applicants</span>${checks("ofEnt", m.entity_types, ["LLC","CORPORATION"])}</div>
+      <div class="f"><span>Value streams funded</span>${checks("ofVs", m.value_streams, ["MANUFACTURING"])}</div>
+      <label class="row"><input type="checkbox" id="ofSam"> Requires SAM.gov registration</label>
+      <label class="row"><input type="checkbox" id="ofPi"> Lead researcher must be employed by the applicant</label>
+      <label class="f">Maximum employees — blank if none<input id="ofEmp" type="number" placeholder="500"></label>
+      <label class="f">Minimum US ownership (%) — blank if none<input id="ofOwn" placeholder="51"></label>
+      <label class="f">Maximum subcontracted share (%) — blank if none<input id="ofSub" placeholder="33"></label>
+    </div>
+    <div class="row" style="margin-top:10px"><button class="btn gold" id="ofSave">Add opportunity</button><span id="ofMsg" class="muted"></span></div>`;
+  f.scrollIntoView({behavior:"smooth"});
+  const blank = v => v.trim() === "" ? null : v.trim();
+  $("#ofSave").onclick = async () => {
+    const body = { funder:$("#ofFunder").value.trim(), program:$("#ofProg").value.trim(), funder_type:$("#ofType").value, deadline:$("#ofDue").value,
+      min_award:$("#ofMin").value.replace(/[$,]/g,""), max_award:$("#ofMax").value.replace(/[$,]/g,""), performance_months:+$("#ofMonths").value,
+      reporting:$("#ofRep").value, cost_share_pct:$("#ofCs").value || "0", indirect_cap_pct:blank($("#ofCap").value),
+      focus_keywords:$("#ofKw").value.split(",").map(x=>x.trim()).filter(Boolean),
+      eligible_entities:$$('input[name="ofEnt"]:checked').map(x=>x.value), value_streams:$$('input[name="ofVs"]:checked').map(x=>x.value),
+      requires_sam:$("#ofSam").checked, requires_pi_employed:$("#ofPi").checked,
+      max_employees: blank($("#ofEmp").value) == null ? null : +$("#ofEmp").value, min_us_ownership_pct:blank($("#ofOwn").value),
+      max_subcontract_pct:blank($("#ofSub").value), created_by:"console user" };
+    try{ const o = await post("/api/grants/opportunities", body); loaded.grants = false; await loaders.grants(); loaded.grants = true;
+      $("#gMatch").insertAdjacentHTML("beforebegin", `<div class="callout GREEN">Added <b>${esc(o.id)}</b> — ${esc(o.program)}. It is now scored for every project.</div>`); }
+    catch(err){ $("#ofMsg").textContent = err.message; }
+  };
 }
 
 // ====================================================================== Resources helpers

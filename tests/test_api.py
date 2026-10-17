@@ -9,7 +9,7 @@ def test_health_and_overview(client):
     assert h["status"] == "ok" and h["status_date"] == "2026-10-17" and not h["agents_enabled"]
     o = client.get("/api/overview").json()
     assert [x["id"] for x in o["hubs"]] == ["HUB-GC", "HUB-GL", "HUB-GP"]
-    assert o["members_active"] == 16 and o["funding_opportunities"] == 9 and o["grants_awarded"] == 2
+    assert o["members_active"] == 16 and o["funding_opportunities"] == 10 and o["grants_awarded"] == 2
     assert client.get("/").status_code == 200 and client.get("/governance").status_code == 200
 
 
@@ -304,3 +304,94 @@ def test_explanations_everywhere(client):
         assert set(part["explanation"]) == {"formula", "inputs", "reasoning"}
     cov = client.get("/api/expertise/coverage").json()["skills"][0]
     assert set(cov["explanation"]) == {"formula", "inputs", "reasoning"}
+
+
+# =====================================================================================
+# Bringing your own project: applicants, SBIR-style rules, add / export / import
+# =====================================================================================
+
+ROUGH = {
+    "hub_id": "HUB-GC", "name": "Integrated Branch-Circuit Rough-In Box", "value_stream": "MANUFACTURING",
+    "capability": "Product-to-Production",
+    "summary": "Injection-molded electrical rough-in box with insert-molded bus contacts so devices snap in.",
+    "objectives": ["Freeze a moldable design", "Pass safety listing", "Pilot run with a molder"],
+    "keywords": ["injection molding", "tooling", "product safety", "innovation"],
+    "start_date": "2026-12-01", "end_date": "2027-11-30", "matching_funds": "10000",
+    "ip_status": "Patent pending",
+    "applicant": {"name": "Example Innovations LLC", "entity_type": "LLC", "sam_registered": True,
+                  "employees": 1, "us_owned_pct": 100, "pi_employed": True},
+    "budget_lines": [{"category": "PERSONNEL", "budgeted": "90000"},
+                     {"category": "CONTRACTUAL", "budgeted": "45000"},
+                     {"category": "EQUIPMENT", "budgeted": "40000"},
+                     {"category": "OTHER", "budgeted": "15000"}],
+    "milestones": [{"name": "Design freeze", "due_date": "2027-01-29"},
+                   {"name": "T1 samples", "due_date": "2027-04-30"}],
+    "skill_needs": [{"skill": "Injection Molding", "min_level": 4, "hours_per_week": "8"}],
+    "created_by": "Wendell Killette",
+}
+
+
+def test_create_project_with_its_own_applicant_and_sbir_checks(client):
+    r = client.post("/api/projects", json=ROUGH)
+    assert r.status_code == 201, r.text
+    p = r.json()
+    assert p["id"] == "P-MFG-02" and p["applicant"]["name"] == "Example Innovations LLC"
+    assert [m["id"] for m in p["milestones"]] == ["MS-MFG-02-1", "MS-MFG-02-2"]
+    sbir = client.get("/api/grants/assess", params={"project_id": "P-MFG-02", "opportunity_id": "FO-10"}).json()
+    checks = {c["check"]: c["passed"] for c in sbir["eligibility"]["checks"]}
+    assert checks == {"entity_type": True, "sam_registration": True, "small_business": True,
+                      "us_ownership": True, "pi_employment": True, "subcontract_cap": True,
+                      "deadline": True, "value_stream": True, "minimum_award": True, "cost_share": True}
+    assert sbir["eligibility"]["eligible"]
+    # the same project applying as the coalition (a 501(c)(3)) fails the for-profit rule
+    as_coalition = client.post("/api/projects", json={**ROUGH, "applicant": None}).json()
+    a = client.get("/api/grants/assess", params={"project_id": as_coalition["id"], "opportunity_id": "FO-10"}).json()
+    failed = {c["check"] for c in a["eligibility"]["checks"] if not c["passed"]}
+    assert {"entity_type", "small_business", "us_ownership", "pi_employment"} <= failed
+
+
+def test_subcontract_cap_catches_too_much_outsourcing(client):
+    heavy = {**ROUGH, "budget_lines": [{"category": "PERSONNEL", "budgeted": "40000"},
+                                       {"category": "CONTRACTUAL", "budgeted": "120000"}]}
+    pid = client.post("/api/projects", json=heavy).json()["id"]
+    a = client.get("/api/grants/assess", params={"project_id": pid, "opportunity_id": "FO-10"}).json()
+    cap = next(c for c in a["eligibility"]["checks"] if c["check"] == "subcontract_cap")
+    assert not cap["passed"] and "33.00%" in cap["detail"]
+
+
+def test_export_and_reimport_round_trip(client):
+    exp = client.get("/api/projects/P-MFG-01/export").json()
+    assert exp["applicant"]["entity_type"] == "LLC" and len(exp["budget_lines"]) == 5
+    again = client.post("/api/projects", json=exp)
+    assert again.status_code == 201
+    assert client.get(f"/api/projects/{again.json()['id']}/export").json() == exp
+
+
+def test_project_validation(client):
+    assert client.post("/api/projects", json={**ROUGH, "hub_id": "HUB-XX"}).status_code == 404
+    assert client.post("/api/projects", json={**ROUGH, "end_date": "2026-01-01"}).status_code == 409
+    bad_skill = {**ROUGH, "skill_needs": [{"skill": "Juggling", "hours_per_week": "2"}]}
+    assert client.post("/api/projects", json=bad_skill).status_code == 409
+    assert client.post("/api/projects", json={**ROUGH, "budget_lines": []}).status_code == 422
+    assert client.post("/api/projects", json={**ROUGH, "value_stream": "MINING"}).status_code == 422
+
+
+def test_create_funding_opportunity(client):
+    body = {"funder": "Example State Fund", "program": "Manufacturing Matching Grant", "funder_type": "STATE",
+            "min_award": "25000", "max_award": "150000", "deadline": "2027-02-15", "performance_months": 12,
+            "eligible_entities": ["LLC"], "value_streams": ["MANUFACTURING"],
+            "focus_keywords": ["Injection Molding", "tooling"], "cost_share_pct": "50",
+            "max_employees": 100, "max_subcontract_pct": "40"}
+    r = client.post("/api/grants/opportunities", json=body)
+    assert r.status_code == 201, r.text
+    o = r.json()
+    assert o["id"] == "FO-11" and o["focus_keywords"] == ["injection molding", "tooling"]
+    assert o["max_employees"] == 100 and o["requires_pi_employed"] is False
+    bad = client.post("/api/grants/opportunities", json={**body, "max_award": "1000"})
+    assert bad.status_code == 409
+
+
+def test_meta_lists_form_choices(client):
+    m = client.get("/api/meta").json()
+    assert "MANUFACTURING" in m["value_streams"] and "CORPORATION" in m["entity_types"]
+    assert "Injection Molding" in m["skills"]

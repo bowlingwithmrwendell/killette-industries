@@ -17,10 +17,10 @@ permissions:
 jobs:
   test:
     name: Engine and API tests
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
         with:
           python-version: "3.12"
           cache: pip
@@ -31,9 +31,9 @@ jobs:
   docker:
     name: Docker image builds
     needs: test
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - run: docker build -t coalition-agents .
       - name: Container starts and reports healthy
         run: |
@@ -45,12 +45,12 @@ jobs:
     name: Live Claude smoke test (manual)
     if: github.event_name == 'workflow_dispatch' && inputs.live_agent_check
     needs: test
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     env:
       ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
         with:
           python-version: "3.12"
       - run: pip install -r requirements.txt

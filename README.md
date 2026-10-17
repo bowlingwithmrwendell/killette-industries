@@ -96,6 +96,22 @@ The agents feed each other. A newly ingested member can close a coverage gap, ra
 * **Proposal packet.** Budget Justification, Team Qualifications, Timeline & Milestones and Eligibility Statement are **generated from data** and cannot be overwritten. Narrative sections are written by a named human or drafted by Claude and approved by a human. An application becomes `READY_FOR_SUBMISSION` only when it is eligible and every required section is ready. Submission is an outbound action that needs a named approver.
 * **Compliance.** A milestone is OVERDUE when past due and incomplete, and AT_RISK when due within 14 days. KPI attainment is actual ÷ target, inverted when lower is better. Burn is spend % minus time-elapsed %, flagged beyond ±15 points. An overdue report, overdue milestone or overspending makes the grant RED. An at-risk milestone, report due soon, underspending or a missed KPI makes it AMBER.
 
+### Bringing a member's own project in
+
+Members can add their own work, not just the demo projects:
+
+| Endpoint | What it does |
+|---|---|
+| `POST /api/projects` | Create a project with its budget, milestones and skill needs |
+| `GET /api/projects/{id}/export` | Save the project as JSON (the sandbox resets on restart); `POST` it back to restore it |
+| `POST /api/grants/opportunities` | Add a real funding opportunity with its rules |
+
+* **Applicant.** By default the coalition applies. A project can name its own applicant instead, such as a member's LLC, with its own entity type, SAM.gov status, headcount, US ownership and whether the lead researcher works there. SBIR-style programs only fund for-profit small businesses, so a member's product usually needs this.
+* **Small-business rules** (checked only when a funder sets them): **small_business** (employees at most the funder's maximum), **us_ownership** (at least the funder's minimum %), **pi_employment** (lead researcher employed by the applicant) and **subcontract_cap** (CONTRACTUAL lines, such as the molder, at most the funder's maximum % of the need; SBIR Phase I is typically 33%).
+* **IP status** is recorded on the project and passed to grant-section drafts.
+
+The demo includes a member-led manufacturing project (`P-MFG-01`, applicant a fictional LLC) and a fictional SBIR-style program (`FO-10`) so the whole path can be tried.
+
 ## Agent 3 · Resource Allocation
 
 | Endpoint | What it does |
@@ -139,7 +155,7 @@ or without Docker:
 ```bash
 pip install -r requirements.txt -r requirements-dev.txt
 uvicorn app.main:app --reload   # SQLite, seeded on start
-python -m pytest -q             # 137 tests, no API key needed
+python -m pytest -q             # no API key needed
 ```
 
 * Console at `/`, with tabs for each agent, Human review, and Approvals & audit.

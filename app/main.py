@@ -221,6 +221,78 @@ class ResourceRequestIn(BaseModel):
     justification: str = Field(default="", max_length=3000)
 
 
+class ApplicantIn(BaseModel):
+    name: str = Field(default="", max_length=200)
+    entity_type: Literal["NONPROFIT_501C3", "COOPERATIVE", "LLC", "CORPORATION", "FISCALLY_SPONSORED"]
+    sam_registered: bool | None = None
+    employees: int | None = Field(default=None, ge=0, le=1_000_000)
+    us_owned_pct: float | None = Field(default=None, ge=0, le=100)
+    pi_employed: bool | None = None
+
+
+class BudgetLineIn(BaseModel):
+    category: Literal[CATEGORIES]  # type: ignore[valid-type]
+    budgeted: str
+    committed: str = "0"
+    spent: str = "0"
+
+
+class MilestoneIn(BaseModel):
+    name: str = Field(min_length=2, max_length=200)
+    due_date: date
+    completed_date: date | None = None
+
+
+class SkillNeedIn(BaseModel):
+    skill: str = Field(max_length=80)
+    min_level: int = Field(default=3, ge=1, le=5)
+    hours_per_week: str
+
+
+class ProjectIn(BaseModel):
+    hub_id: str
+    name: str = Field(min_length=3, max_length=200)
+    value_stream: Literal["INSURANCE", "AUTOMOTIVE", "AGRICULTURE", "MANUFACTURING"]
+    capability: str = Field(default="", max_length=120)
+    summary: str = Field(min_length=10, max_length=3000)
+    objectives: list[str] = Field(default_factory=list, max_length=10)
+    beneficiaries: str = Field(default="", max_length=1000)
+    keywords: list[str] = Field(default_factory=list, max_length=20)
+    start_date: date
+    end_date: date
+    lead_member_id: str | None = None
+    matching_funds: str = "0"
+    ip_status: str = Field(default="", max_length=500)
+    applicant: ApplicantIn | None = Field(default=None, description="Leave out to apply as the coalition.")
+    budget_lines: list[BudgetLineIn] = Field(min_length=1, max_length=20)
+    milestones: list[MilestoneIn] = Field(default_factory=list, max_length=20)
+    skill_needs: list[SkillNeedIn] = Field(default_factory=list, max_length=20)
+    created_by: str = Field(default="", max_length=120)
+
+
+class OpportunityIn(BaseModel):
+    funder: str = Field(min_length=3, max_length=200)
+    program: str = Field(min_length=3, max_length=200)
+    funder_type: Literal["FEDERAL", "STATE", "PRIVATE"]
+    min_award: str
+    max_award: str
+    deadline: date
+    performance_months: int = Field(ge=1, le=120)
+    eligible_entities: list[Literal["NONPROFIT_501C3", "COOPERATIVE", "LLC", "CORPORATION",
+                                    "FISCALLY_SPONSORED"]] = Field(min_length=1)
+    value_streams: list[Literal["INSURANCE", "AUTOMOTIVE", "AGRICULTURE", "MANUFACTURING"]] = Field(min_length=1)
+    focus_keywords: list[str] = Field(default_factory=list, max_length=20)
+    cost_share_pct: str = "0"
+    indirect_cap_pct: str | None = None
+    requires_sam: bool = False
+    reporting: Literal["MONTHLY", "QUARTERLY", "SEMIANNUAL"] = "QUARTERLY"
+    max_employees: int | None = Field(default=None, ge=1)
+    min_us_ownership_pct: str | None = None
+    requires_pi_employed: bool = False
+    max_subcontract_pct: str | None = None
+    created_by: str = Field(default="", max_length=120)
+
+
 class AssignmentIn(BaseModel):
     line_index: int = Field(ge=0)
     member_id: str
@@ -289,6 +361,26 @@ def health(s: Session = Depends(get_session)):
 @app.get("/api/overview", tags=["Coalition"])
 def get_overview(s: Session = Depends(get_session)):
     return repository.overview(s)
+
+
+@app.get("/api/meta", tags=["Coalition"])
+def get_meta():
+    """Choices for the console forms."""
+    return {"value_streams": list(taxonomy.VALUE_STREAMS), "entity_types": list(repository.ENTITY_TYPES),
+            "budget_categories": list(CATEGORIES), "skills": sorted(taxonomy.TAXONOMY)}
+
+
+@app.post("/api/projects", status_code=201, tags=["Coalition"])
+def create_project(body: ProjectIn, s: Session = Depends(get_session)):
+    """Create a hub project (budget, milestones, skill needs). Also re-imports an exported project."""
+    d = body.model_dump()
+    return _call(repository.create_project, s, d, body.created_by or "console user")
+
+
+@app.get("/api/projects/{project_id}/export", tags=["Coalition"])
+def export_project(project_id: str, s: Session = Depends(get_session)):
+    """Save this JSON; POST it back to /api/projects to restore the project after a sandbox reset."""
+    return _call(repository.export_project, s, project_id)
 
 
 @app.get("/api/projects/{project_id}", tags=["Coalition"])
@@ -375,6 +467,12 @@ def bio_draft(member_id: str, body: DraftIn, s: Session = Depends(get_session),
 @app.get("/api/grants/opportunities", tags=["2 · Grant-Writing"])
 def get_opportunities(s: Session = Depends(get_session)):
     return repository.list_opportunities(s)
+
+
+@app.post("/api/grants/opportunities", status_code=201, tags=["2 · Grant-Writing"])
+def create_opportunity(body: OpportunityIn, s: Session = Depends(get_session)):
+    """Add a funding opportunity with its rules (including SBIR-style small-business rules)."""
+    return _call(repository.create_opportunity, s, body.model_dump(), body.created_by or "console user")
 
 
 @app.get("/api/grants/projects/{project_id}/opportunities", tags=["2 · Grant-Writing"])

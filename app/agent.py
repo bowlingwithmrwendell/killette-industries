@@ -381,6 +381,7 @@ def draft_grant_section(s: Session, application_id: str, section: str, client=No
              "project": {k: d[k] for k in ("name", "value_stream", "capability", "summary", "objectives",
                                            "beneficiaries", "start_date", "end_date")},
              "hub": d["hub"]["name"], "region": d["hub"]["region"],
+             "applicant": d["applicant"]["name"], "ip_status": d.get("ip_status", ""),
              "team": d["team"], "milestones": d["milestones"],
              "request": packet["assessment"]["budget"]["request"],
              "matched_focus_keywords": packet["assessment"]["alignment"]["matched_keywords"]}

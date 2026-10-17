@@ -20,6 +20,13 @@ Eligibility (all REQUIRED checks must pass)
   value_stream     the project's value stream is one the funder funds
   minimum_award    the computed request is at least the funder's minimum
   cost_share       matching funds >= cost share required
+  Small-business rules, checked only when the funder sets them (SBIR-style programs):
+  small_business   applicant employees <= the funder's maximum
+  us_ownership     applicant US ownership % >= the funder's minimum
+  pi_employment    the principal investigator is employed by the applicant
+  subcontract_cap  contractual (outside firms, e.g. the molder) <= the funder's maximum % of the need
+The APPLICANT is the coalition by default; a project can name its own applicant
+(e.g. a member's company) with its own entity type, SAM status, size and ownership.
 Warnings (do not block): deadline within 14 days, request capped at the maximum,
   project not fully funded by request + match, project longer than the performance period.
 
@@ -98,6 +105,8 @@ def budget(opp: dict, project: dict, budget_lines: list[dict], coalition_rate_pc
     by_cat: dict[str, Decimal] = {}
     for b in budget_lines:
         by_cat[b["category"]] = by_cat.get(b["category"], Decimal("0")) + _d(b["budgeted"])
+    contractual = by_cat.get("CONTRACTUAL", Decimal("0"))
+    subcontract_pct = _pct(contractual, total)
     return {
         "direct_costs": _money(direct),
         "by_category": {k: _money(v) for k, v in sorted(by_cat.items())},
@@ -112,6 +121,8 @@ def budget(opp: dict, project: dict, budget_lines: list[dict], coalition_rate_pc
         "cost_share_required": _money(cost_share),
         "matching_funds": _money(match),
         "funded_total": _money(request + match),
+        "contractual": _money(contractual),
+        "subcontract_pct": str(subcontract_pct),
         "explanation": explain(
             "request = min(direct + MTDC x rate, max_award); cost share = request x pct",
             {"direct": _money(direct), "mtdc": _money(mtdc), "coalition_rate_pct": str(rate),
@@ -136,13 +147,33 @@ def eligibility(opp: dict, project: dict, coalition: dict, bud: dict, as_of: dat
     def check(name, passed, detail):
         checks.append({"check": name, "passed": bool(passed), "detail": detail})
 
+    who = coalition.get("name") or "The applicant"
     et = coalition["entity_type"]
     check("entity_type", et in opp["eligible_entities"],
-          f"Coalition is {et}; funder accepts {', '.join(opp['eligible_entities'])}.")
+          f"{who} is {et}; funder accepts {', '.join(opp['eligible_entities'])}.")
     if opp.get("requires_sam"):
         check("sam_registration", coalition["sam_registered"],
-              "Funder requires active SAM.gov registration (UEI); coalition is "
+              f"Funder requires active SAM.gov registration (UEI); {who} is "
               + ("registered." if coalition["sam_registered"] else "NOT registered."))
+    if opp.get("max_employees") is not None:
+        emp = coalition.get("employees")
+        check("small_business", emp is not None and int(emp) <= int(opp["max_employees"]),
+              f"Funder limits applicants to {opp['max_employees']} employees; {who} has "
+              + (f"{emp}." if emp is not None else "not stated a headcount."))
+    if opp.get("min_us_ownership_pct") is not None:
+        own = coalition.get("us_owned_pct")
+        check("us_ownership", own is not None and _d(own) >= _d(opp["min_us_ownership_pct"]),
+              f"Funder requires at least {_d(opp['min_us_ownership_pct'])}% US ownership; {who} is "
+              + (f"{_d(own)}% US-owned." if own is not None else "not stated."))
+    if opp.get("requires_pi_employed"):
+        pi = coalition.get("pi_employed")
+        check("pi_employment", pi is True,
+              f"Funder requires the principal investigator to be employed by {who}; "
+              + ("confirmed." if pi is True else "not confirmed."))
+    if opp.get("max_subcontract_pct") is not None:
+        check("subcontract_cap", _d(bud["subcontract_pct"]) <= _d(opp["max_subcontract_pct"]),
+              f"Outside firms (CONTRACTUAL {bud['contractual']}) are {bud['subcontract_pct']}% of the "
+              f"need; the funder allows at most {_d(opp['max_subcontract_pct'])}%.")
     days = (opp["deadline"] - as_of).days
     check("deadline", days >= 0,
           f"Deadline {opp['deadline'].isoformat()} is {days} day(s) from the status date."

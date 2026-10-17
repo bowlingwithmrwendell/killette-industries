@@ -109,6 +109,16 @@ class HubProjectRow(Base):
     # Non-grant funds pledged to the project (partner cash, in-kind member hours).
     # Grant cost-share requirements are checked against this.
     matching_funds: Mapped[Decimal] = mapped_column(Numeric(14, 2), default=Decimal("0"))
+    # Who applies for grants on this project. Blank = the coalition itself (from .env).
+    # A member's own company can be the applicant (e.g. an LLC applying to an SBIR-style program).
+    applicant_name: Mapped[str] = mapped_column(String(200), default="")
+    applicant_entity_type: Mapped[str] = mapped_column(String(32), default="")
+    applicant_sam_registered: Mapped[bool | None] = mapped_column(Boolean, nullable=True)
+    applicant_employees: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    applicant_us_owned_pct: Mapped[Decimal | None] = mapped_column(Numeric(5, 2), nullable=True)
+    pi_employed_by_applicant: Mapped[bool | None] = mapped_column(Boolean, nullable=True)
+    # Intellectual property, e.g. "Patent pending, US application filed 2026-05-01"
+    ip_status: Mapped[str] = mapped_column(Text, default="")
 
 
 class BudgetLineRow(Base):
@@ -160,6 +170,11 @@ class FundingOpportunityRow(Base):
     requires_sam: Mapped[bool] = mapped_column(Boolean, default=False)
     required_sections: Mapped[list] = mapped_column(JSON, default=list)
     reporting: Mapped[str] = mapped_column(String(16), default="QUARTERLY")   # MONTHLY | QUARTERLY | SEMIANNUAL
+    # Small-business rules (SBIR-style). Null = the funder has no such rule.
+    max_employees: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    min_us_ownership_pct: Mapped[Decimal | None] = mapped_column(Numeric(5, 2), nullable=True)
+    requires_pi_employed: Mapped[bool] = mapped_column(Boolean, default=False)
+    max_subcontract_pct: Mapped[Decimal | None] = mapped_column(Numeric(5, 2), nullable=True)
 
 
 class GrantApplicationRow(Base):

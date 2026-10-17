@@ -49,7 +49,7 @@ def _dec(name: str, default: str) -> Decimal:
 # --- Coalition legal profile (drives grant eligibility) ----------------------------
 # The entity type is the single biggest factor in which grants the coalition can
 # apply for. The demo assumes a 501(c)(3); change it here to see eligibility move.
-# Allowed: NONPROFIT_501C3, COOPERATIVE, LLC, FISCALLY_SPONSORED
+# Allowed: NONPROFIT_501C3, COOPERATIVE, LLC, CORPORATION, FISCALLY_SPONSORED
 COALITION_NAME = os.environ.get("COALITION_NAME", "Killette Industries Coalition")
 COALITION_ENTITY_TYPE = os.environ.get("COALITION_ENTITY_TYPE", "NONPROFIT_501C3")
 COALITION_SAM_REGISTERED = _bool("COALITION_SAM_REGISTERED", True)

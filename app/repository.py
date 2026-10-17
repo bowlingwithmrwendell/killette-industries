@@ -57,7 +57,8 @@ def project_facts(p: HubProjectRow) -> dict:
             "capability": p.capability, "summary": p.summary, "objectives": p.objectives,
             "beneficiaries": p.beneficiaries, "keywords": p.keywords, "start_date": p.start_date,
             "end_date": p.end_date, "lead_member_id": p.lead_member_id,
-            "matching_funds": _money(p.matching_funds)}
+            "matching_funds": _money(p.matching_funds),
+            "applicant": applicant_profile(p), "ip_status": p.ip_status or ""}
 
 
 def _jsonable(d: dict) -> dict:
@@ -95,13 +96,151 @@ def project_detail(s: Session, project_id: str) -> dict:
     p = _get(s, HubProjectRow, project_id, "project")
     ms = s.query(ProjectMilestoneRow).filter_by(project_id=p.id).order_by(ProjectMilestoneRow.due_date)
     needs = s.query(SkillNeedRow).filter_by(project_id=p.id).order_by(SkillNeedRow.id)
-    return {**_jsonable(project_facts(p)),
+    return {**_jsonable(project_facts(p)), "applicant": _plain(applicant_profile(p)),
             "budget": allocation.budget_position(_budget_lines(s, p.id)),
             "milestones": [{"id": m.id, "name": m.name, "due_date": m.due_date.isoformat(),
                             "completed_date": m.completed_date.isoformat() if m.completed_date else None}
                            for m in ms],
             "skill_needs": [{"skill": n.skill, "min_level": n.min_level,
                              "hours_per_week": str(n.hours_per_week)} for n in needs]}
+
+
+# ======================================================================================
+# Creating projects and funders (so members can bring their own work in)
+# ======================================================================================
+
+from .engines.allocation import CATEGORIES as _CATEGORIES  # noqa: E402
+from .engines.taxonomy import VALUE_STREAMS as _VALUE_STREAMS  # noqa: E402
+
+ENTITY_TYPES = ("NONPROFIT_501C3", "COOPERATIVE", "LLC", "CORPORATION", "FISCALLY_SPONSORED")
+
+
+def _next_id(s: Session, cls, prefix: str) -> str:
+    n = 1
+    while s.get(cls, f"{prefix}{n:02d}"):
+        n += 1
+    return f"{prefix}{n:02d}"
+
+
+def create_project(s: Session, body: dict, actor: str) -> dict:
+    """Create a hub project with its budget, milestones and skill needs in one step.
+
+    The same shape is produced by export_project, so a saved project can be re-imported
+    after the sandbox resets.
+    """
+    _get(s, HubRow, body["hub_id"], "hub")
+    if body["value_stream"] not in _VALUE_STREAMS:
+        raise Conflict(f"value_stream must be one of {', '.join(_VALUE_STREAMS)}.")
+    if body["end_date"] <= body["start_date"]:
+        raise Conflict("end_date must be after start_date.")
+    a = body.get("applicant") or {}
+    if a.get("entity_type") and a["entity_type"] not in ENTITY_TYPES:
+        raise Conflict(f"applicant.entity_type must be one of {', '.join(ENTITY_TYPES)}.")
+    lines = body.get("budget_lines") or []
+    if not lines:
+        raise Conflict("At least one budget line is required.")
+    for b in lines:
+        if b["category"] not in _CATEGORIES:
+            raise Conflict(f"Budget category must be one of {', '.join(_CATEGORIES)}.")
+        if Decimal(str(b["budgeted"])) <= 0:
+            raise Conflict("Every budget line needs an amount greater than 0.")
+    for n in body.get("skill_needs") or []:
+        if n["skill"] not in taxonomy.TAXONOMY:
+            raise Conflict(f"'{n['skill']}' is not a taxonomy skill.")
+    if body.get("lead_member_id"):
+        _get(s, MemberRow, body["lead_member_id"], "member")
+
+    prefix = {"INSURANCE": "P-INS-", "AUTOMOTIVE": "P-AUT-", "AGRICULTURE": "P-AGR-",
+              "MANUFACTURING": "P-MFG-"}[body["value_stream"]]
+    pid = _next_id(s, HubProjectRow, prefix)
+    p = HubProjectRow(
+        id=pid, hub_id=body["hub_id"], name=body["name"].strip(), value_stream=body["value_stream"],
+        capability=body.get("capability", "").strip(), summary=body["summary"].strip(),
+        objectives=[o.strip() for o in body.get("objectives") or [] if o.strip()],
+        beneficiaries=body.get("beneficiaries", "").strip(),
+        keywords=[k.strip().lower() for k in body.get("keywords") or [] if k.strip()],
+        start_date=body["start_date"], end_date=body["end_date"],
+        lead_member_id=body.get("lead_member_id") or None,
+        matching_funds=Decimal(str(body.get("matching_funds") or 0)),
+        applicant_name=(a.get("name") or "").strip(), applicant_entity_type=a.get("entity_type") or "",
+        applicant_sam_registered=a.get("sam_registered"), applicant_employees=a.get("employees"),
+        applicant_us_owned_pct=(Decimal(str(a["us_owned_pct"])) if a.get("us_owned_pct") is not None else None),
+        pi_employed_by_applicant=a.get("pi_employed"), ip_status=(body.get("ip_status") or "").strip())
+    s.add(p)
+    s.flush()
+    for b in lines:
+        s.add(BudgetLineRow(project_id=pid, category=b["category"], budgeted=Decimal(str(b["budgeted"])),
+                            committed=Decimal(str(b.get("committed") or 0)),
+                            spent=Decimal(str(b.get("spent") or 0))))
+    for i, m in enumerate(body.get("milestones") or [], 1):
+        s.add(ProjectMilestoneRow(id=f"MS-{pid[2:]}-{i}", project_id=pid, name=m["name"].strip(),
+                                  due_date=m["due_date"], completed_date=m.get("completed_date")))
+    for n in body.get("skill_needs") or []:
+        s.add(SkillNeedRow(project_id=pid, skill=n["skill"], min_level=int(n.get("min_level", 3)),
+                           hours_per_week=Decimal(str(n["hours_per_week"]))))
+    audit(s, actor, "PROJECT_CREATED", {"project_id": pid, "hub_id": p.hub_id,
+                                         "value_stream": p.value_stream, "applicant": p.applicant_name or "coalition"})
+    s.commit()
+    return project_detail(s, pid)
+
+
+def export_project(s: Session, project_id: str) -> dict:
+    """The project in the exact shape create_project accepts (save it; import it later)."""
+    p = _get(s, HubProjectRow, project_id, "project")
+    return {
+        "hub_id": p.hub_id, "name": p.name, "value_stream": p.value_stream, "capability": p.capability,
+        "summary": p.summary, "objectives": p.objectives, "beneficiaries": p.beneficiaries,
+        "keywords": p.keywords, "start_date": p.start_date.isoformat(), "end_date": p.end_date.isoformat(),
+        "lead_member_id": p.lead_member_id, "matching_funds": _money(p.matching_funds),
+        "ip_status": p.ip_status or "",
+        "applicant": None if not (p.applicant_name or p.applicant_entity_type) else {
+            "name": p.applicant_name, "entity_type": p.applicant_entity_type,
+            "sam_registered": p.applicant_sam_registered, "employees": p.applicant_employees,
+            "us_owned_pct": None if p.applicant_us_owned_pct is None else str(p.applicant_us_owned_pct),
+            "pi_employed": p.pi_employed_by_applicant},
+        "budget_lines": [{"category": b.category, "budgeted": _money(b.budgeted),
+                          "committed": _money(b.committed), "spent": _money(b.spent)}
+                         for b in s.query(BudgetLineRow).filter_by(project_id=p.id).order_by(BudgetLineRow.id)],
+        "milestones": [{"name": m.name, "due_date": m.due_date.isoformat(),
+                        "completed_date": m.completed_date.isoformat() if m.completed_date else None}
+                       for m in s.query(ProjectMilestoneRow).filter_by(project_id=p.id)
+                       .order_by(ProjectMilestoneRow.due_date)],
+        "skill_needs": [{"skill": n.skill, "min_level": n.min_level, "hours_per_week": str(n.hours_per_week)}
+                        for n in s.query(SkillNeedRow).filter_by(project_id=p.id).order_by(SkillNeedRow.id)],
+    }
+
+
+def create_opportunity(s: Session, body: dict, actor: str) -> dict:
+    if not set(body["value_streams"]) <= set(_VALUE_STREAMS) or not body["value_streams"]:
+        raise Conflict(f"value_streams must be from {', '.join(_VALUE_STREAMS)}.")
+    if not set(body["eligible_entities"]) <= set(ENTITY_TYPES) or not body["eligible_entities"]:
+        raise Conflict(f"eligible_entities must be from {', '.join(ENTITY_TYPES)}.")
+    if Decimal(str(body["max_award"])) < Decimal(str(body["min_award"])):
+        raise Conflict("max_award must be at least min_award.")
+    oid = _next_id(s, FundingOpportunityRow, "FO-")
+    sections = body.get("required_sections") or [
+        "Project Summary", "Statement of Need", "Project Narrative", "Budget Justification",
+        "Team Qualifications", "Evaluation Plan"]
+    o = FundingOpportunityRow(
+        id=oid, funder=body["funder"].strip(), program=body["program"].strip(), funder_type=body["funder_type"],
+        min_award=Decimal(str(body["min_award"])), max_award=Decimal(str(body["max_award"])),
+        deadline=body["deadline"], performance_months=int(body["performance_months"]),
+        eligible_entities=list(body["eligible_entities"]), value_streams=list(body["value_streams"]),
+        focus_keywords=[k.strip().lower() for k in body.get("focus_keywords") or [] if k.strip()],
+        cost_share_pct=Decimal(str(body.get("cost_share_pct") or 0)),
+        indirect_cap_pct=(Decimal(str(body["indirect_cap_pct"])) if body.get("indirect_cap_pct") not in (None, "") else None),
+        requires_sam=bool(body.get("requires_sam")), required_sections=sections,
+        reporting=body.get("reporting") or "QUARTERLY",
+        max_employees=body.get("max_employees"),
+        min_us_ownership_pct=(Decimal(str(body["min_us_ownership_pct"]))
+                              if body.get("min_us_ownership_pct") not in (None, "") else None),
+        requires_pi_employed=bool(body.get("requires_pi_employed")),
+        max_subcontract_pct=(Decimal(str(body["max_subcontract_pct"]))
+                             if body.get("max_subcontract_pct") not in (None, "") else None))
+    s.add(o)
+    audit(s, actor, "FUNDING_OPPORTUNITY_CREATED", {"opportunity_id": oid, "program": o.program})
+    s.commit()
+    return next(x for x in list_opportunities(s) if x["id"] == oid)
 
 
 # ======================================================================================
@@ -254,6 +393,27 @@ def coalition_profile() -> dict:
             "indirect_rate_pct": config.COALITION_INDIRECT_RATE_PCT}
 
 
+def applicant_profile(p: HubProjectRow) -> dict:
+    """Who applies for this project's grants: its own named applicant, or the coalition."""
+    base = coalition_profile()
+    if not (p.applicant_name or p.applicant_entity_type):
+        return {**base, "source": "coalition", "employees": None, "us_owned_pct": None,
+                "pi_employed": None}
+    return {"name": p.applicant_name or base["name"],
+            "entity_type": p.applicant_entity_type or base["entity_type"],
+            "sam_registered": bool(p.applicant_sam_registered),
+            "indirect_rate_pct": base["indirect_rate_pct"],
+            "employees": p.applicant_employees,
+            "us_owned_pct": p.applicant_us_owned_pct,
+            "pi_employed": p.pi_employed_by_applicant,
+            "source": "project"}
+
+
+def _plain(d: dict) -> dict:
+    return {k: (str(v) if isinstance(v, Decimal) else v.isoformat() if hasattr(v, "isoformat") else v)
+            for k, v in d.items()}
+
+
 def opp_dict(o: FundingOpportunityRow) -> dict:
     return {"id": o.id, "funder": o.funder, "program": o.program, "funder_type": o.funder_type,
             "min_award": o.min_award, "max_award": o.max_award, "deadline": o.deadline,
@@ -261,7 +421,10 @@ def opp_dict(o: FundingOpportunityRow) -> dict:
             "value_streams": o.value_streams, "focus_keywords": o.focus_keywords,
             "cost_share_pct": o.cost_share_pct, "indirect_cap_pct": o.indirect_cap_pct,
             "requires_sam": o.requires_sam, "required_sections": o.required_sections,
-            "reporting": o.reporting}
+            "reporting": o.reporting, "max_employees": o.max_employees,
+            "min_us_ownership_pct": o.min_us_ownership_pct,
+            "requires_pi_employed": bool(o.requires_pi_employed),
+            "max_subcontract_pct": o.max_subcontract_pct}
 
 
 def list_opportunities(s: Session) -> list[dict]:
@@ -282,19 +445,19 @@ def _staffable(s: Session, project_id: str) -> list[bool]:
 def assess(s: Session, project_id: str, opportunity_id: str) -> dict:
     p = _get(s, HubProjectRow, project_id, "project")
     o = _get(s, FundingOpportunityRow, opportunity_id, "funding opportunity")
-    return grants.assess(opp_dict(o), project_facts(p), _budget_lines(s, p.id), coalition_profile(),
+    return grants.assess(opp_dict(o), project_facts(p), _budget_lines(s, p.id), applicant_profile(p),
                          _staffable(s, p.id), config.STATUS_DATE)
 
 
 def match_opportunities(s: Session, project_id: str) -> dict:
-    _get(s, HubProjectRow, project_id, "project")
+    proj = _get(s, HubProjectRow, project_id, "project")
     ranked = [assess(s, project_id, o.id) for o in s.query(FundingOpportunityRow)]
     order = {"PURSUE": 0, "CONSIDER": 1, "PASS": 2, "NOT ELIGIBLE": 3}
     ranked.sort(key=lambda a: (order[a["alignment"]["recommendation"]],
                                -Decimal(a["alignment"]["score"]), a["opportunity_id"]))
     return {"project_id": project_id, "coalition": _jsonable({k: str(v) if isinstance(v, Decimal) else v
                                                               for k, v in coalition_profile().items()}),
-            "opportunities": ranked}
+            "applicant": _plain(applicant_profile(proj)), "opportunities": ranked}
 
 
 def gather_project_details(s: Session, project_id: str) -> dict:

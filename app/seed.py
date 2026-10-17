@@ -388,6 +388,17 @@ OPPORTUNITIES = [
                          "small business", "domestic production"],
          cost_share_pct=D("25"), indirect_cap_pct=D("10"), requires_sam=False,
          required_sections=ALL_SECTIONS_BASIC, reporting="QUARTERLY"),
+    # SBIR-style federal program: for-profit small businesses only, with the small-business rules.
+    dict(id="FO-10", funder="Federal Small Business Innovation Program (fictional, SBIR-style)",
+         program="Phase I: Advanced Manufacturing Feasibility", funder_type="FEDERAL",
+         min_award=D("100000"), max_award=D("300000"), deadline=date(2027, 1, 22), performance_months=12,
+         eligible_entities=["LLC", "CORPORATION"], value_streams=["MANUFACTURING"],
+         focus_keywords=["injection molding", "manufacturing", "product safety", "tooling",
+                         "domestic production", "innovation"],
+         cost_share_pct=D("0"), indirect_cap_pct=None, requires_sam=True,
+         required_sections=FEDERAL_SECTIONS, reporting="SEMIANNUAL",
+         max_employees=500, min_us_ownership_pct=D("51"), requires_pi_employed=True,
+         max_subcontract_pct=D("33")),
     # Earlier-cycle programs behind the two awarded grants
     dict(id="FO-07", funder="Heartland Rural Innovation Foundation (fictional)",
          program="Farm Data for Working Lands (2025 cycle)", funder_type="PRIVATE", min_award=D("100000"),
@@ -528,3 +539,38 @@ def seed(s: Session) -> None:
         "justification": "Signals must be validated on real (de-identified) claims before the alpha."},
         actor="Danielle Fontenot")
     s.commit()
+
+    # A member-led manufacturing project whose applicant is the member's own company, not the
+    # coalition -- the shape a member's product (molded part, tooling, listing) takes.
+    repository.create_project(s, MANUFACTURING_DEMO, actor="seed")
+
+
+MANUFACTURING_DEMO = {
+    "hub_id": "HUB-GL", "name": "Insert-Molded Sensor Housing Pilot", "value_stream": "MANUFACTURING",
+    "capability": "Product-to-Production",
+    "summary": "Take a weatherproof sensor housing from 3D-printed prototype to an insert-molded, "
+               "safety-listed production part made by a regional molder.",
+    "objectives": ["Freeze a moldable design with insert-molded contacts",
+                   "Pass product safety listing on first-article samples",
+                   "Run a pilot lot with a regional injection molder"],
+    "beneficiaries": "Regional molders and the farm-sensor projects that need a durable housing.",
+    "keywords": ["injection molding", "tooling", "product safety", "domestic production", "small business"],
+    "start_date": date(2026, 11, 1), "end_date": date(2027, 10, 31),
+    "lead_member_id": "M-008", "matching_funds": "25000",
+    "ip_status": "Design owned by the applicant; patent search complete (fictional).",
+    "applicant": {"name": "Huron Precision Housings LLC (fictional)", "entity_type": "LLC",
+                  "sam_registered": True, "employees": 6, "us_owned_pct": "100", "pi_employed": True},
+    "budget_lines": [{"category": "PERSONNEL", "budgeted": "110000"},
+                     {"category": "CONTRACTUAL", "budgeted": "60000"},   # molder: T1 samples, pilot lot
+                     {"category": "EQUIPMENT", "budgeted": "48000"},     # production mold, owned
+                     {"category": "SUPPLIES", "budgeted": "9000"},       # resin, inserts, prototypes
+                     {"category": "OTHER", "budgeted": "18000"}],        # listing and test lab fees
+    "milestones": [{"name": "Design freeze", "due_date": date(2026, 12, 18)},
+                   {"name": "Mold built and T1 samples", "due_date": date(2027, 3, 26)},
+                   {"name": "Safety listing passed", "due_date": date(2027, 6, 30)},
+                   {"name": "Pilot lot shipped", "due_date": date(2027, 9, 30)}],
+    "skill_needs": [{"skill": "Injection Molding", "min_level": 4, "hours_per_week": "10"},
+                    {"skill": "Mold Design & Tooling", "min_level": 3, "hours_per_week": "6"},
+                    {"skill": "Product Safety Certification", "min_level": 3, "hours_per_week": "4"},
+                    {"skill": "Manufacturing Operations", "min_level": 4, "hours_per_week": "6"}],
+}
