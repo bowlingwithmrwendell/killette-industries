@@ -1,0 +1,540 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Coalition Agents · Killette Industries</title>
+<style>
+  :root{
+    --navy:#152a45; --navy-2:#1e3a5f; --gold:#b8913a; --gold-2:#d4b46a;
+    --bg:#f5f6f8; --card:#fff; --text:#1c2733; --muted:#5b6878; --line:#e3e7ec;
+    --green:#1f8a4c; --amber:#c27c0e; --red:#c0392b; --blue:#2c6aa0;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;background:var(--bg);color:var(--text);line-height:1.5}
+  header{background:var(--navy);color:#fff;padding:20px 16px}
+  .wrap{max-width:1180px;margin:0 auto;padding:0 16px}
+  header .wrap{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+  .mark{width:44px;height:44px;border-radius:50%;background:var(--gold);color:var(--navy);display:grid;place-items:center;font-weight:800;letter-spacing:.5px;flex:none}
+  header h1{font-size:1.25rem;margin:0}
+  header p{margin:2px 0 0;color:#c9d3e0;font-size:.9rem}
+  .badge{margin-left:auto;font-size:.78rem;border:1px solid var(--gold);color:var(--gold-2);padding:4px 10px;border-radius:999px}
+  nav{background:var(--navy-2);overflow-x:auto}
+  nav .wrap{display:flex;gap:4px}
+  nav button{background:none;border:0;color:#c9d3e0;padding:12px 14px;font:inherit;font-size:.92rem;cursor:pointer;border-bottom:3px solid transparent;white-space:nowrap}
+  nav button.active{color:#fff;border-bottom-color:var(--gold)}
+  main.wrap{padding-top:24px;padding-bottom:48px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:18px;margin-bottom:16px}
+  h2{font-size:1.1rem;margin:0 0 12px}
+  h3{font-size:.98rem;margin:18px 0 8px}
+  .grid{display:grid;gap:14px;grid-template-columns:repeat(auto-fit,minmax(260px,1fr))}
+  .tile{border:1px solid var(--line);border-radius:10px;padding:14px;background:#fff}
+  .tile.click{cursor:pointer} .tile.click:hover{border-color:var(--gold)}
+  .name{font-weight:650}
+  .muted{color:var(--muted);font-size:.88rem}
+  .chip{display:inline-block;font-size:.72rem;font-weight:700;padding:3px 9px;border-radius:999px;color:#fff;letter-spacing:.3px;white-space:nowrap}
+  .GREEN,.COVERED,.VALIDATED,.APPROVED,.PURSUE,.COMPLETE,.ON_TRACK,.ON_PACE,.FILED,.READY_FOR_SUBMISSION,.GENERATED,.HUMAN_AUTHORED,.AI_DRAFT_APPROVED,.SUBMITTED,.AWARDED,.EXECUTED{background:var(--green)}
+  .AMBER,.SINGLE_POINT_OF_FAILURE,.CONSIDER,.AT_RISK,.DUE_SOON,.UNDERSPENDING,.AI_DRAFT_PENDING_REVIEW,.PENDING_REVIEW,.SUBMITTED_REQ,.DRAFT,.PENDING{background:var(--amber)}
+  .RED,.GAP,.FAILED_VALIDATION,.REJECTED,.NOT_ELIGIBLE,.OVERDUE,.OVERSPENDING,.MISSING,.AI_DRAFT_REJECTED,.WITHDRAWN{background:var(--red)}
+  .PASS,.UPCOMING,.ACTIVE{background:#7a8796}
+  .pill{display:inline-block;font-size:.75rem;padding:2px 8px;border-radius:6px;background:#eef1f5;color:var(--muted)}
+  .table-wrap{overflow-x:auto}
+  table{border-collapse:collapse;width:100%;font-size:.88rem}
+  th,td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--line);vertical-align:top}
+  th{background:#f0f2f5;font-weight:650;white-space:nowrap}
+  tr.click{cursor:pointer} tr.click:hover td{background:#fbf7ee}
+  .callout{border-left:4px solid var(--gold);background:#fbf7ee;padding:12px 14px;border-radius:6px;margin:10px 0}
+  .callout.RED{border-left-color:var(--red);background:#fbefed}
+  .callout.AMBER{border-left-color:var(--amber);background:#fdf5e8}
+  .callout.GREEN{border-left-color:var(--green);background:#edf7f1}
+  select,input,textarea{font:inherit;padding:9px 10px;border:1px solid var(--line);border-radius:8px;background:#fff;color:var(--text);max-width:100%}
+  textarea{width:100%;min-height:80px}
+  label.f{display:flex;flex-direction:column;gap:4px;font-size:.85rem;color:var(--muted)}
+  .form{display:grid;gap:10px;grid-template-columns:repeat(auto-fit,minmax(220px,1fr))}
+  .form .wide{grid-column:1/-1}
+  .btn{background:var(--navy);color:#fff;border:0;border-radius:8px;padding:9px 16px;font:inherit;cursor:pointer}
+  .btn.gold{background:var(--gold);color:var(--navy);font-weight:650}
+  .btn.ghost{background:#fff;color:var(--navy);border:1px solid var(--navy)}
+  .btn.small{padding:5px 10px;font-size:.82rem}
+  .btn:disabled{opacity:.5;cursor:not-allowed}
+  .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+  .answer{white-space:pre-wrap;background:#fafbfc;border:1px solid var(--line);border-radius:8px;padding:14px}
+  .gov{font-size:.82rem;color:var(--muted);margin-top:8px}
+  .hidden{display:none}
+  footer{text-align:center;color:var(--muted);font-size:.82rem;padding:20px 16px}
+  footer a{color:var(--navy)}
+  .num{font-variant-numeric:tabular-nums}
+  .examples button{margin:4px 6px 0 0}
+  .draft{border:2px dashed var(--amber);background:#fffaf0}
+  .why{font-size:.8rem;color:var(--muted)}
+  .rv{border:1px solid var(--line);border-radius:10px;padding:14px;margin-bottom:12px}
+  .rv.PENDING_REVIEW{border-left:4px solid var(--amber)} .rv.APPROVED,.rv.APPROVED_WITH_EDITS{border-left:4px solid var(--green)} .rv.REJECTED{border-left:4px solid var(--red)}
+  .agentpick{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px}
+  .agentpick button{border:1px solid var(--line);background:#fff;border-radius:999px;padding:7px 14px;font:inherit;cursor:pointer}
+  .agentpick button.on{background:var(--navy);color:#fff;border-color:var(--navy)}
+  .sec{border:1px solid var(--line);border-radius:10px;padding:12px;margin-bottom:10px}
+  .md table{margin:6px 0}
+  .bar{height:8px;background:#eef1f5;border-radius:6px;overflow:hidden;margin-top:6px}
+  .bar span{display:block;height:100%;background:var(--gold)}
+  .kpis{display:grid;gap:12px;grid-template-columns:repeat(auto-fit,minmax(160px,1fr))}
+  .kpi{border:1px solid var(--line);border-radius:10px;padding:12px;background:#fff}
+  .kpi b{display:block;font-size:1.5rem;color:var(--navy)}
+  @media (max-width:640px){ .badge{margin-left:0} }
+</style>
+</head>
+<body>
+<header>
+  <div class="wrap">
+    <div class="mark">KI</div>
+    <div>
+      <h1>Killette Industries Coalition Agents</h1>
+      <p>Expertise Ingestion · Grant-Writing · Resource Allocation · status date <span id="statusDate">…</span></p>
+    </div>
+    <span class="badge">Fictional demo data</span>
+  </div>
+</header>
+<nav><div class="wrap" id="tabs">
+  <button data-tab="coalition" class="active">Coalition</button>
+  <button data-tab="expertise">1 · Expertise</button>
+  <button data-tab="grants">2 · Grants</button>
+  <button data-tab="resources">3 · Resources</button>
+  <button data-tab="ask">Ask the agents</button>
+  <button data-tab="reviews">Human review <span id="pendingCount" class="pill" style="margin-left:4px">0</span></button>
+  <button data-tab="approvals">Approvals &amp; audit</button>
+  <a href="/governance" style="margin-left:auto;color:var(--gold-2);padding:12px 14px;white-space:nowrap;font-size:.92rem">Governance scorecard ↗</a>
+</div></nav>
+
+<main class="wrap">
+  <section id="coalition"></section>
+  <section id="expertise" class="hidden"></section>
+  <section id="grants" class="hidden"></section>
+  <section id="resources" class="hidden"></section>
+  <section id="ask" class="hidden"></section>
+  <section id="reviews" class="hidden"></section>
+  <section id="approvals" class="hidden"></section>
+</main>
+<footer>
+  Architected by Wendell Killette · <a href="https://agilebykillette.com">Agile by Killette</a> · Every figure comes from a deterministic engine; Claude orchestrates, explains and drafts for human review. ·
+  <a href="/docs">API docs</a>
+</footer>
+
+<script>
+const $ = (s, el=document) => el.querySelector(s);
+const $$ = (s, el=document) => [...el.querySelectorAll(s)];
+const esc = v => String(v ?? "—").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const chip = (s, label) => `<span class="chip ${esc(String(s).replace(/ /g,"_"))}">${esc(label ?? String(s).replace(/_/g," "))}</span>`;
+const money = v => v == null ? "—" : (Number(v) < 0 ? "-$" : "$") + Math.abs(Number(v)).toLocaleString("en-US",{minimumFractionDigits:0,maximumFractionDigits:2});
+const J = {"Content-Type":"application/json"};
+async function api(path, opts){ const r = await fetch(path, opts); const t = await r.text(); let j; try{ j = JSON.parse(t) }catch{ j = t }
+  if(!r.ok) throw new Error((j && j.detail) ? (typeof j.detail === "string" ? j.detail : j.detail.map ? j.detail.map(d=>d.msg).join("; ") : JSON.stringify(j.detail)) : r.statusText); return j; }
+const post = (p, b, m="POST") => api(p, {method:m, headers:J, body:JSON.stringify(b)});
+function table(cols, rows, rowAttr){ return `<div class="table-wrap"><table><thead><tr>${cols.map(c=>`<th>${esc(c[0])}</th>`).join("")}</tr></thead><tbody>${
+  rows.map(r=>`<tr ${rowAttr ? rowAttr(r) : ""}>${cols.map(c=>`<td>${c[1](r)}</td>`).join("")}</tr>`).join("") || `<tr><td colspan="${cols.length}" class="muted">None</td></tr>`}</tbody></table></div>`; }
+const why = e => e ? `<div class="why"><b>${esc(e.formula)}</b><br>${esc(e.reasoning)}</div>` : "";
+// minimal markdown table/bullet renderer for generated proposal sections
+function md(text){
+  if(text == null) return "";
+  const lines = String(text).split("\n"); let out = "", tbl = [];
+  const flush = () => { if(!tbl.length) return; const rows = tbl.filter(l=>!/^\|\s*-/.test(l)).map(l=>l.replace(/^\||\|$/g,"").split("|").map(c=>c.trim()));
+    out += `<div class="table-wrap md"><table><thead><tr>${rows[0].map(c=>`<th>${inline(c)}</th>`).join("")}</tr></thead><tbody>${rows.slice(1).map(r=>`<tr>${r.map(c=>`<td>${inline(c)}</td>`).join("")}</tr>`).join("")}</tbody></table></div>`; tbl = []; };
+  const inline = s => esc(s).replace(/\*\*(.+?)\*\*/g,"<b>$1</b>").replace(/(^|\s)_(\S.*?)_(?=\s|$)/g,"$1<i>$2</i>");
+  for(const l of lines){ if(l.startsWith("|")){ tbl.push(l); continue; } flush();
+    if(l.startsWith("- ")) out += `<div>• ${inline(l.slice(2))}</div>`; else if(l.trim()) out += `<p style="margin:6px 0">${inline(l)}</p>`; }
+  flush(); return out;
+}
+
+let OV = null;
+const loaded = {};
+$("#tabs").addEventListener("click", e => { const b = e.target.closest("button"); if(b) show(b.dataset.tab); });
+function show(tab){
+  $$("#tabs button").forEach(b => b.classList.toggle("active", b.dataset.tab === tab));
+  $$("main section").forEach(s => s.classList.toggle("hidden", s.id !== tab));
+  if(!loaded[tab] || tab === "reviews" || tab === "approvals"){ loaded[tab] = true; loaders[tab](); }
+  window.scrollTo(0,0);
+}
+async function overview(force){ if(!OV || force){ OV = await api("/api/overview"); $("#statusDate").textContent = OV.status_date; } return OV; }
+const projects = () => OV.hubs.flatMap(h => h.projects.map(p => ({...p, hub_id:h.id, hub:h.name})));
+const hubName = id => (OV.hubs.find(h=>h.id===id)||{}).name || id;
+
+const loaders = {
+  // ------------------------------------------------------------------ Coalition
+  async coalition(){
+    const o = await overview(true);
+    const [cov, port, reqs] = await Promise.all([api("/api/expertise/coverage"), api("/api/grants/compliance"), api("/api/resources/requests")]);
+    $("#coalition").innerHTML = `
+      <div class="card"><h2>${esc(o.coalition)}</h2>
+        <p class="muted" style="margin-top:-6px">A self-organizing, multi-industry coalition working through regional hubs under agile agreements. Decisions by team consensus; every AI output waits for a named human.</p>
+        <div class="kpis">
+          <div class="kpi"><span class="muted">Active members</span><b>${esc(o.members_active)}</b></div>
+          <div class="kpi"><span class="muted">Skill gaps</span><b>${esc(cov.summary.GAP)}</b><span class="muted">${esc(cov.summary.SINGLE_POINT_OF_FAILURE)} single points of failure</span></div>
+          <div class="kpi"><span class="muted">Funding opportunities</span><b>${esc(o.funding_opportunities)}</b><span class="muted">${esc(o.grants_awarded)} grants awarded</span></div>
+          <div class="kpi"><span class="muted">Open resource requests</span><b>${esc(o.resource_requests_open)}</b><span class="muted">${reqs.filter(r=>r.status==="VALIDATED").length} validated, awaiting a decision</span></div>
+        </div></div>
+      <div class="grid">${o.hubs.map(h => `
+        <div class="tile"><div class="name">${esc(h.name)}</div><div class="muted">${esc(h.region)} · facilitator ${esc(h.facilitator)} · ${esc(h.active_members)} members</div>
+          ${h.projects.map(p => `<div style="margin-top:10px"><div class="row" style="justify-content:space-between"><span>${esc(p.name)}</span><span class="pill">${esc(p.value_stream)}</span></div>
+            <div class="muted">${esc(p.capability)} · ${money(p.budget.budgeted)} budget · ${esc(p.used_pct)}% committed or spent</div>
+            <div class="bar"><span style="width:${Math.min(100, Number(p.used_pct))}%"></span></div></div>`).join("")}
+          <h3>Working agreement</h3><ul style="margin:0;padding-left:18px">${h.working_agreement.map(a=>`<li class="muted">${esc(a)}</li>`).join("")}</ul>
+        </div>`).join("")}</div>
+      <div class="card" style="margin-top:16px"><h2>Awarded grants</h2>
+        ${table([["Grant",x=>`<b>${esc(x.program)}</b><div class="muted">${esc(x.project)} · ${esc(hubName(x.hub_id))}</div>`],["Status",x=>chip(x.status)],
+          ["Spend vs time",x=>`<span class="num">${esc(x.spend_pct)}% / ${esc(x.elapsed_pct)}%</span>`],["Next report",x=>esc(x.next_report_due)],
+          ["Attention",x=>x.reasons.map(r=>`<div class="muted">${esc(r)}</div>`).join("") || "<span class='muted'>None</span>"]], port)}</div>`;
+  },
+
+  // ------------------------------------------------------------------ 1 · Expertise
+  async expertise(){
+    await overview();
+    $("#expertise").innerHTML = `
+      <div class="card"><div class="row" style="justify-content:space-between"><h2 style="margin:0">Skill coverage vs project demand</h2>
+        <select id="covVs"><option value="">All value streams</option><option>INSURANCE</option><option>AUTOMOTIVE</option><option>AGRICULTURE</option></select></div>
+        <p class="muted">Only members who consented to profiling count. Supply = hours qualified members already give the skill + their free hours.</p><div id="covBody"></div></div>
+      <div class="card"><div class="row" style="justify-content:space-between"><h2 style="margin:0">Members</h2>
+        <div class="row"><select id="memHub"><option value="">All hubs</option>${OV.hubs.map(h=>`<option value="${esc(h.id)}">${esc(h.name)}</option>`).join("")}</select>
+        <button class="btn gold" id="addMember">Add a member</button></div></div>
+        <p class="muted">Select a member for their structured profile and how each level was computed.</p><div id="memBody"></div></div>
+      <div class="card hidden" id="memDetail"></div>
+      <div class="card hidden" id="ingestCard"></div>`;
+    const drawCov = async () => { const v = $("#covVs").value; const c = await api("/api/expertise/coverage" + (v ? `?value_stream=${v}` : ""));
+      $("#covBody").innerHTML = `<p class="muted">${chip("GAP")} ${c.summary.GAP} · ${chip("SINGLE_POINT_OF_FAILURE")} ${c.summary.SINGLE_POINT_OF_FAILURE} · ${chip("COVERED")} ${c.summary.COVERED}</p>` +
+        table([["Skill",x=>`<b>${esc(x.skill)}</b><div class="muted">${esc(x.domain)}</div>`],["Min level",x=>esc(x.min_level)],["Demand h/wk",x=>`<span class="num">${esc(x.demand_hours)}</span>`],
+          ["Supply h/wk",x=>`<span class="num">${esc(x.available_hours)}</span>`],["Qualified",x=>esc(x.qualified_members.join(", ") || "none")],["Projects",x=>esc(x.projects.join(", "))],
+          ["Status",x=>chip(x.status)],["Why",x=>`<span class="why">${esc(x.explanation.reasoning)}</span>`]], c.skills); };
+    const drawMem = async () => { const h = $("#memHub").value; const m = await api("/api/members" + (h ? `?hub_id=${h}` : ""));
+      $("#memBody").innerHTML = table([["Member",x=>`<b>${esc(x.name)}</b><div class="muted">${esc(x.id)} · ${esc(x.headline)}</div>`],["Hub",x=>esc(hubName(x.hub_id))],
+        ["Seniority",x=>x.consent_profiling ? `${esc(x.seniority)}<div class="muted">${esc(x.total_years)} yrs</div>` : chip("PENDING","NO CONSENT")],
+        ["Top skills",x=>x.top_skills.map(s=>`<span class="pill">${esc(s.skill)} ${esc(s.level)}/5</span>`).join(" ") || "<span class='muted'>—</span>"],
+        ["Free h/wk",x=>`<span class="num">${esc(x.available_hours)}</span> <span class="muted">of ${esc(x.capacity_hours)}</span>`],["Profile",x=>`${esc(x.completeness_pct)}%`],["Status",x=>chip(x.status)]], m,
+        x=>`class="click" data-mid="${esc(x.id)}"`);
+      $$("#memBody tr[data-mid]").forEach(tr => tr.onclick = () => openMember(tr.dataset.mid)); };
+    $("#covVs").onchange = drawCov; $("#memHub").onchange = drawMem; drawCov(); drawMem();
+    $("#addMember").onclick = openIngest;
+  },
+
+  // ------------------------------------------------------------------ 2 · Grants
+  async grants(){
+    await overview();
+    const [apps, opps] = await Promise.all([api("/api/grants/applications"), api("/api/grants/opportunities")]);
+    $("#grants").innerHTML = `
+      <div class="card"><div class="row" style="justify-content:space-between"><h2 style="margin:0">Align a hub project with funders</h2>
+        <select id="gProj">${projects().map(p=>`<option value="${esc(p.id)}">${esc(p.name)} (${esc(p.hub)})</option>`).join("")}</select></div>
+        <p class="muted">Eligibility is pass/fail per rule; alignment = focus 40 + team 25 + budget fit 20 + timeline 15. Funders are fictional.</p><div id="gMatch"></div></div>
+      <div class="card"><h2>Applications</h2>${table([["ID",x=>`<b>${esc(x.id)}</b>`],["Project",x=>`${esc(x.project)}<div class="muted">${esc(hubName(x.hub_id))}</div>`],
+        ["Funder",x=>`${esc(x.program)}<div class="muted">${esc(x.funder)}</div>`],["Status",x=>chip(x.status)],["Awarded",x=>x.awarded_amount?money(x.awarded_amount):"—"]], apps, x=>`class="click" data-app="${esc(x.id)}"`)}
+        <p class="muted">Select an application for its proposal packet, or an awarded grant for its milestone report.</p></div>
+      <div class="card hidden" id="gDetail"></div>
+      <div class="card"><h2>All funding opportunities</h2>${table([["Program",x=>`<b>${esc(x.program)}</b><div class="muted">${esc(x.funder)} · ${esc(x.funder_type)}</div>`],
+        ["Award range",x=>`${money(x.min_award)} – ${money(x.max_award)}`],["Deadline",x=>`${esc(x.deadline)}<div class="muted">${x.days_to_deadline < 0 ? "closed" : esc(x.days_to_deadline) + " days"}</div>`],
+        ["Streams",x=>esc(x.value_streams.join(", "))],["Eligible entities",x=>esc(x.eligible_entities.join(", "))],["Cost share",x=>esc(x.cost_share_pct)+"%"],["SAM",x=>x.requires_sam?"Required":"—"]], opps)}</div>`;
+    $("#gProj").onchange = drawMatch; drawMatch();
+    $$("#grants tr[data-app]").forEach(tr => tr.onclick = () => openApplication(tr.dataset.app, apps.find(a=>a.id===tr.dataset.app).status));
+  },
+
+  // ------------------------------------------------------------------ 3 · Resources
+  async resources(){
+    await overview();
+    const reqs = await api("/api/resources/requests");
+    $("#resources").innerHTML = `
+      <div class="card"><div class="row" style="justify-content:space-between"><h2 style="margin:0">Hub resource requests</h2><button class="btn gold" id="newReq">New request</button></div>
+        <p class="muted">Every request passes <b>mandatory budget validation</b> against its project budget when it is submitted, and again at the moment of approval. Only a named human can approve and release funds.</p>
+        ${table([["#",x=>`<b>${esc(x.id)}</b>`],["Request",x=>`${esc(x.title)}<div class="muted">${esc(hubName(x.hub_id))} · ${esc(x.project_id)} · by ${esc(x.requested_by)}</div>`],
+          ["Amount",x=>`<span class="num">${money(x.validation ? x.validation.total_requested : null)}</span>`],["Needed",x=>`${esc(x.needed_from)} → ${esc(x.needed_to)}`],
+          ["Status",x=>chip(x.status === "SUBMITTED" ? "SUBMITTED_REQ" : x.status, x.status.replace(/_/g," "))],["Validation",x=>`<span class="why">${esc(x.validation ? x.validation.explanation.reasoning : "")}</span>`]], reqs, x=>`class="click" data-rq="${x.id}"`)}</div>
+      <div class="card hidden" id="rqDetail"></div>
+      <div class="card hidden" id="rqForm"></div>
+      <div class="card"><h2>Project budgets</h2><div id="budgets"></div></div>`;
+    $$("#resources tr[data-rq]").forEach(tr => tr.onclick = () => openRequest(+tr.dataset.rq));
+    $("#newReq").onclick = openRequestForm;
+    const bs = await Promise.all(projects().map(p => api(`/api/resources/projects/${p.id}/budget`)));
+    $("#budgets").innerHTML = table([["Project",x=>`<b>${esc(x.project)}</b><div class="muted">${esc(hubName(x.hub_id))}</div>`],["Budgeted",x=>money(x.totals.budgeted)],["Committed",x=>money(x.totals.committed)],
+      ["Spent",x=>money(x.totals.spent)],["Remaining",x=>`<b>${money(x.totals.remaining)}</b>`],["Used",x=>`${esc(x.used_pct)}%<div class="bar"><span style="width:${Math.min(100,Number(x.used_pct))}%"></span></div>`],
+      ["By category (remaining)",x=>Object.entries(x.by_category).map(([k,v])=>`<span class="pill">${esc(k)} ${money(v.remaining)}</span>`).join(" ")]], bs);
+  },
+
+  // ------------------------------------------------------------------ Ask
+  async ask(){
+    const h = await api("/health");
+    const EX = {
+      expertise: ["Where are our biggest skill gaps, and which ones are single points of failure?", "Who could cover Vehicle Software for the Great Lakes Hub?", "Summarize Evelyn Sorensen's profile for a proposal team section."],
+      grants: ["Which funders should the Farm-to-Distribution Traceability project pursue, and why?", "What does application GA-003 still need before it can be submitted?", "Which awarded grants need attention this month?"],
+      resources: ["Which resource requests are ready for a decision, and what would approving them commit?", "Why did request 2 fail validation, and what would make it pass?", "Who is the best match for the safety engineer line on request 1?"]};
+    let current = "expertise";
+    $("#ask").innerHTML = `<div class="card"><h2>Ask the agents</h2>
+      ${h.agents_enabled ? "" : `<div class="callout AMBER">The Claude agents are not enabled on this instance (no API key, or the kill switch is on). Every other tab works — they are the deterministic engines the agents would call.</div>`}
+      <div class="agentpick" id="pick"><button data-a="expertise" class="on">1 · Expertise Ingestion</button><button data-a="grants">2 · Grant-Writing</button><button data-a="resources">3 · Resource Allocation</button></div>
+      <p class="muted">Each agent can only read its own engines. It cannot change data, approve, release funds or send anything, and every number it states is checked against the tool results.</p>
+      <textarea id="q" placeholder="Ask a question…"></textarea>
+      <input id="askedBy" placeholder="Your name (optional, logged with the request)" style="margin-top:8px;width:320px">
+      <div class="examples" id="ex"></div>
+      <div class="row" style="margin-top:10px"><button class="btn gold" id="askBtn" ${h.agents_enabled?"":"disabled"}>Ask</button><span id="askStatus" class="muted"></span></div>
+      <div id="ans" style="margin-top:14px"></div></div>`;
+    const drawEx = () => { $("#ex").innerHTML = EX[current].map(e=>`<button class="btn ghost small" type="button">${esc(e)}</button>`).join(""); };
+    $("#pick").onclick = e => { const b = e.target.closest("button"); if(!b) return; current = b.dataset.a; $$("#pick button").forEach(x=>x.classList.toggle("on", x===b)); drawEx(); };
+    $("#ex").onclick = e => { const b = e.target.closest("button"); if(b) $("#q").value = b.textContent; };
+    drawEx();
+    $("#askBtn").onclick = async () => {
+      const q = $("#q").value.trim(); if(q.length < 3) return;
+      $("#askStatus").textContent = "Thinking… (the free instance may take a moment)"; $("#ans").innerHTML = "";
+      try{
+        const r = await post(`/api/agents/${current}/ask`, {question:q, requested_by: $("#askedBy").value.trim()});
+        $("#ans").innerHTML = draftBlock(r.review_id, r.draft_answer, r.grounded, r.unverified_numbers) +
+          `<div class="gov">Engines called: ${r.tools_used.map(t=>esc(t.tool)).join(", ") || "none"} · Tokens: ${esc(r.usage.input_tokens)} in / ${esc(r.usage.output_tokens)} out</div>`;
+        bindGoReview(); refreshPending(); $("#askStatus").textContent = "";
+      }catch(err){ $("#askStatus").textContent = "Error: " + err.message; }
+    };
+  },
+
+  // ------------------------------------------------------------------ Reviews
+  async reviews(){
+    $("#reviews").innerHTML = `<div class="card"><div class="row" style="justify-content:space-between"><h2 style="margin:0">Human review of AI output</h2>
+      <div class="row"><select id="rvAgent"><option value="">All agents</option><option value="expertise">Expertise</option><option value="grants">Grants</option><option value="resources">Resources</option></select>
+      <select id="rvFilter"><option value="PENDING_REVIEW">Pending review</option><option value="">All</option><option value="APPROVED">Approved</option><option value="APPROVED_WITH_EDITS">Approved with edits</option><option value="REJECTED">Rejected</option></select></div></div>
+      <p class="muted">Every AI output (agent answers, grant-section drafts, member bios) starts <b>PENDING_REVIEW</b> and is never published until a named human approves it, edits then approves it, or rejects it with a reason. Decisions are final. The AI, agents and automated systems are refused as reviewers. Outputs with unverified numbers cannot be approved unchanged.</p>
+      <div class="row"><label class="f">Reviewer<input id="rvName" placeholder="Your full name"></label></div>
+      <div id="rvList" style="margin-top:14px"></div></div>`;
+    $("#rvFilter").onchange = drawReviews; $("#rvAgent").onchange = drawReviews; drawReviews();
+  },
+
+  // ------------------------------------------------------------------ Approvals
+  async approvals(){
+    const [acts, aud] = await Promise.all([api("/api/actions"), api("/api/audit?limit=40")]);
+    $("#approvals").innerHTML = `<div class="card"><h2>Outbound actions</h2>
+      <p class="muted">Nothing leaves this service without a named human approver. The grants agent can only propose a submission.</p>
+      ${table([["#",x=>esc(x.id)],["Action",x=>esc(x.action_type)],["Payload",x=>`<code>${esc(JSON.stringify(x.payload))}</code>`],["Requested by",x=>esc(x.requested_by)],["Status",x=>chip(x.status)],
+        ["Decision",x=>x.status==="PENDING"?`<button class="btn small" data-a="${x.id}" data-ok="1">Approve</button> <button class="btn ghost small" data-a="${x.id}" data-ok="0">Reject</button>`:`${esc(x.result)}<div class="muted">by ${esc(x.decided_by)}</div>`]], acts)}
+      </div><div class="card"><h2>Audit trail</h2>${table([["When (UTC)",x=>esc(x.at.replace("T"," ").slice(0,19))],["Actor",x=>esc(x.actor)],["Event",x=>esc(x.event)],["Detail",x=>`<code style="font-size:.78rem">${esc(JSON.stringify(x.detail))}</code>`]], aud)}</div>`;
+    $$("#approvals button[data-a]").forEach(b => b.onclick = async () => {
+      const who = prompt("Your full name (recorded as the approver):"); if(!who) return;
+      let reason = ""; if(b.dataset.ok !== "1"){ reason = prompt("Reason for rejecting (required):") || ""; if(!reason) return; }
+      try{ await post(`/api/actions/${b.dataset.a}/decision`, {approve: b.dataset.ok==="1", decided_by: who, reason}); }catch(err){ alert(err.message); }
+      loaders.approvals(); loaded.grants = false;
+    });
+  },
+};
+
+// ====================================================================== Expertise helpers
+async function openMember(id){
+  const m = await api(`/api/members/${id}`); const d = $("#memDetail"); d.classList.remove("hidden");
+  d.innerHTML = `<div class="row" style="justify-content:space-between"><h2 style="margin:0">${esc(m.name)} <span class="muted">${esc(m.id)}</span></h2>
+      <div class="row">${m.consent_profiling ? `<button class="btn ghost small" id="bioBtn">Draft proposal bio (AI)</button><button class="btn ghost small" id="wdBtn">Withdraw consent</button>` : ""}</div></div>
+    <p class="muted">${esc(m.headline)} · ${esc(hubName(m.hub_id))} · ${m.consent_profiling ? `${esc(m.seniority)}, ${esc(m.total_years)} years (overlapping roles counted once)` : "No consent to profiling: nothing is ingested, scored, matched or sent to AI."}</p>
+    ${m.consent_profiling ? `
+    ${table([["Skill",x=>`<b>${esc(x.skill)}</b><div class="muted">${esc(x.domain)} · member wrote "${esc(x.raw_label)}"</div>`],["Years",x=>esc(x.years)],["Self-rating",x=>esc(x.self_rating)],["Certified",x=>x.certified?"Yes":"—"],
+      ["Level",x=>`<b>${esc(x.level)}/5</b>`],["How the level was set",x=>why(x.explanation)]], m.skills)}
+    ${m.unmapped_skills.length ? `<div class="callout AMBER">Not in the taxonomy (kept for a human to map, never guessed): ${esc(m.unmapped_skills.join(", "))}</div>` : ""}
+    <h3>Roles</h3>${table([["Title",x=>esc(x.title)],["Organization",x=>esc(x.organization)],["Industry",x=>esc(x.industry)],["Years",x=>`${esc(x.start_year)} – ${esc(x.end_year ?? "present")}`]], m.roles)}
+    <h3>Assignments</h3>${table([["Project",x=>esc(x.project_id)],["Skill",x=>esc(x.skill)],["Hours/week",x=>esc(x.hours_per_week)]], m.assignments)}` : ""}
+    <p class="gov">${esc(m.data_policy)}</p><div id="memMsg"></div>`;
+  d.scrollIntoView({behavior:"smooth"});
+  if(!m.consent_profiling) return;
+  $("#bioBtn").onclick = async () => { try{ const r = await post(`/api/members/${id}/bio-draft`, {requested_by:""});
+      $("#memMsg").innerHTML = draftBlock(r.review_id, r.draft, r.grounded, r.unverified_numbers); bindGoReview(); refreshPending(); }
+    catch(err){ $("#memMsg").innerHTML = `<div class="callout RED">${esc(err.message)}</div>`; } };
+  $("#wdBtn").onclick = async () => { const who = prompt(`Confirm withdrawal for ${m.name}. Type the name of the person confirming:`); if(!who) return;
+    try{ const r = await post(`/api/members/${id}/withdraw-consent`, {confirmed_by: who});
+      $("#memMsg").innerHTML = `<div class="callout">${esc(r.skills_removed)} skill records deleted. ${esc(r.note)}</div>`; loaded.expertise = false; setTimeout(()=>{ loaders.expertise(); loaded.expertise = true; }, 1200); }
+    catch(err){ $("#memMsg").innerHTML = `<div class="callout RED">${esc(err.message)}</div>`; } };
+}
+
+function openIngest(){
+  const c = $("#ingestCard"); c.classList.remove("hidden");
+  c.innerHTML = `<h2>Add a member</h2><p class="muted">The member describes their background in their own words. The ingestion engine maps skills to the taxonomy, sets each level from the evidence, and merges overlapping roles. Free text only <i>suggests</i> skills.</p>
+    <div class="form">
+      <label class="f">Name<input id="inName" value="Marisol Vega"></label>
+      <label class="f">Hub<select id="inHub">${OV.hubs.map(h=>`<option value="${esc(h.id)}">${esc(h.name)}</option>`).join("")}</select></label>
+      <label class="f">Headline<input id="inHead" value="Cybersecurity lead for connected vehicles"></label>
+      <label class="f">Hours per week available<input id="inCap" type="number" value="20" min="0" max="60"></label>
+      <label class="f">Industries (comma-separated)<input id="inInd" value="Automotive"></label>
+      <label class="f">Certifications (comma-separated)<input id="inCert" value="CISSP"></label>
+      <label class="f wide">Skills — one per line: label | years | self-rating 1-5 | certified (y/n)
+        <textarea id="inSkills">CISSP | 14 | 5 | y
+AUTOSAR | 6 | 4 | n
+Kubernetes | 2 | 5 | n</textarea></label>
+      <label class="f wide">Roles — one per line: title | organization | industry | start year | end year (blank = current)
+        <textarea id="inRoles">Security Engineer | Huron Electronics | Automotive | 2009 | 2017
+Vehicle Security Lead | Wolverine Mobility | Automotive | 2015 |</textarea></label>
+      <label class="f wide">Résumé text (optional — scanned for skills to suggest)<textarea id="inCv">Led ISO 26262 safety cases for ECU software.</textarea></label>
+      <label class="wide row"><input type="checkbox" id="inConsent"> The member agrees to have their professional skills profiled and matched to coalition work. (Required.)</label>
+    </div>
+    <div class="row" style="margin-top:10px"><button class="btn ghost" id="inPrev">Preview</button><button class="btn gold" id="inSave">Save member</button><span id="inMsg" class="muted"></span></div>
+    <div id="inOut"></div>`;
+  c.scrollIntoView({behavior:"smooth"});
+  const body = () => ({ hub_id: $("#inHub").value, name: $("#inName").value.trim(), headline: $("#inHead").value.trim(), capacity_hours: +$("#inCap").value,
+    industries: $("#inInd").value.split(",").map(x=>x.trim()).filter(Boolean), certifications: $("#inCert").value.split(",").map(x=>x.trim()).filter(Boolean),
+    skills: $("#inSkills").value.split("\n").filter(l=>l.trim()).map(l=>{ const p = l.split("|").map(x=>x.trim()); return {label:p[0], years:+(p[1]||0), self_rating:+(p[2]||3), certified:/^y/i.test(p[3]||"")}; }),
+    roles: $("#inRoles").value.split("\n").filter(l=>l.trim()).map(l=>{ const p = l.split("|").map(x=>x.trim()); return {title:p[0], organization:p[1]||"", industry:p[2]||"", start_year:+p[3], end_year: p[4] ? +p[4] : null}; }),
+    consent_profiling: $("#inConsent").checked, resume_text: $("#inCv").value, submitted_by: "console user" });
+  const render = p => `<h3>Result: ${esc(p.seniority)}, ${esc(p.total_years)} years · profile ${esc(p.completeness_pct)}% complete</h3>
+    ${table([["Skill",x=>`<b>${esc(x.skill)}</b><div class="muted">from "${esc(x.raw_label)}"</div>`],["Level",x=>`<b>${esc(x.level)}/5</b>`],["Why",x=>why(x.explanation)]], p.skills)}
+    ${p.unmapped_skills.length ? `<div class="callout AMBER">Unmapped (not guessed): ${esc(p.unmapped_skills.join(", "))}</div>` : ""}
+    ${p.suggested_skills.length ? `<div class="callout">Suggested from résumé text — the member must confirm before these count: ${p.suggested_skills.map(s=>`<b>${esc(s.skill)}</b> <span class="muted">("${esc(s.evidence)}")</span>`).join("; ")}</div>` : ""}
+    <p class="why">${esc(p.explanations.completeness.reasoning)}</p>`;
+  $("#inPrev").onclick = async () => { try{ $("#inOut").innerHTML = render(await post("/api/expertise/preview", body())); $("#inMsg").textContent = ""; }catch(err){ $("#inMsg").textContent = err.message; } };
+  $("#inSave").onclick = async () => { try{ const p = await post("/api/members/ingest", body()); $("#inOut").innerHTML = `<div class="callout GREEN">Saved as ${esc(p.member_id)}. Coverage has been recalculated.</div>` + render(p); loaders.expertise(); }catch(err){ $("#inMsg").textContent = err.message; } };
+}
+
+// ====================================================================== Grants helpers
+async function drawMatch(){
+  const pid = $("#gProj").value; const r = await api(`/api/grants/projects/${pid}/opportunities`);
+  $("#gMatch").innerHTML = `<p class="muted">Coalition profile: ${esc(r.coalition.entity_type)} · SAM ${r.coalition.sam_registered === true || r.coalition.sam_registered === "True" ? "registered" : "not registered"} · indirect rate ${esc(r.coalition.indirect_rate_pct)}%</p>` +
+    table([["Opportunity",x=>`<b>${esc(x.program)}</b><div class="muted">${esc(x.funder)} · due ${esc(x.deadline)}</div>`],
+      ["Score",x=>`<b class="num">${esc(x.alignment.score)}</b><div class="why">focus ${esc(x.alignment.components.focus)} · team ${esc(x.alignment.components.team)} · budget ${esc(x.alignment.components.budget_fit)} · time ${esc(x.alignment.components.timeline)}</div>`],
+      ["Recommendation",x=>chip(x.alignment.recommendation)],["Request",x=>`${money(x.budget.request)}<div class="why">need ${money(x.budget.total_need)} · cost share ${money(x.budget.cost_share_required)}</div>`],
+      ["Eligibility",x=>x.eligibility.checks.filter(c=>!c.passed).map(c=>`<div style="color:var(--red)">✗ ${esc(c.detail)}</div>`).join("") + x.eligibility.warnings.map(w=>`<div class="muted">⚠ ${esc(w)}</div>`).join("") || `<span style="color:var(--green)">✓ all checks pass</span>`],
+      ["",x=>x.eligibility.eligible ? `<button class="btn small" data-new="${esc(x.opportunity_id)}">Start application</button>` : ""]], r.opportunities);
+  $$("#gMatch button[data-new]").forEach(b => b.onclick = async () => {
+    const who = prompt("Your name (recorded as the creator):"); if(!who) return;
+    try{ const p = await post("/api/grants/applications", {project_id: pid, opportunity_id: b.dataset.new, created_by: who}); loaded.grants = false; await loaders.grants(); loaded.grants = true; openApplication(p.application_id, p.status); }
+    catch(err){ alert(err.message); } });
+}
+
+async function openApplication(id, status){
+  const d = $("#gDetail"); d.classList.remove("hidden");
+  if(status === "AWARDED"){ const c = await api(`/api/grants/applications/${id}/compliance`);
+    d.innerHTML = `<div class="row" style="justify-content:space-between"><h2 style="margin:0">${esc(c.program)} — milestone report</h2>
+      <a class="btn ghost small" href="/api/grants/applications/${esc(id)}/compliance?format=markdown" target="_blank" rel="noopener">Markdown report</a></div>
+      <p class="muted">${esc(c.project)} · ${esc(c.funder)} · status ${chip(c.status)}</p>
+      ${c.reasons.map(r=>`<div class="callout ${esc(c.status)}">${esc(r)}</div>`).join("")}
+      <div class="kpis"><div class="kpi"><span class="muted">Awarded</span><b>${money(c.spend.awarded)}</b></div><div class="kpi"><span class="muted">Spent</span><b>${money(c.spend.spent)}</b><span class="muted">${esc(c.spend.spend_pct)}% of award</span></div>
+        <div class="kpi"><span class="muted">Period elapsed</span><b>${esc(c.spend.elapsed_pct)}%</b>${chip(c.spend.burn)}</div><div class="kpi"><span class="muted">Next report due</span><b style="font-size:1.1rem">${esc(c.next_report_due)}</b></div></div>
+      <h3>Milestones and KPIs</h3>${table([["Milestone",x=>esc(x.name)],["Due",x=>esc(x.due_date)],["Status",x=>chip(x.status)],["KPI",x=>x.kpi?`${esc(x.kpi.name)}: ${esc(x.kpi.actual)} / ${esc(x.kpi.target)}`:"—"],["Attainment",x=>x.kpi?`<b>${esc(x.kpi.attainment_pct)}%</b>${why(x.kpi.explanation)}`:"—"]], c.milestones)}
+      <h3>Funder reports</h3>${table([["Period ending",x=>esc(x.period_end)],["Due",x=>esc(x.due_date)],["Filed",x=>esc(x.filed_date)],["Status",x=>chip(x.status)]], c.reports)}
+      ${why(c.explanation)}`;
+    d.scrollIntoView({behavior:"smooth"}); return; }
+  const p = await api(`/api/grants/applications/${id}`);
+  d.innerHTML = `<div class="row" style="justify-content:space-between"><h2 style="margin:0">${esc(p.application_id)} · ${esc(p.program)}</h2>${chip(p.status)}</div>
+    <p class="muted">${esc(p.project_details.name)} · ${esc(p.funder)} · deadline ${esc(p.deadline)} · request ${money(p.assessment.budget.request)} · alignment ${esc(p.assessment.alignment.score)} (${esc(p.assessment.alignment.recommendation)})</p>
+    ${p.readiness.ready ? `<div class="callout GREEN">Ready for submission. Submitting needs a named human approver. <button class="btn small" id="propSub">Propose submission</button></div>`
+      : `<div class="callout AMBER"><b>Not ready yet.</b>${p.readiness.blocking.map(b=>`<div>${esc(b)}</div>`).join("")}</div>`}
+    <div class="row"><label class="f">Your name (author / requester)<input id="secWho" placeholder="Full name"></label></div>
+    <h3>Proposal sections</h3>
+    ${p.sections.map(s => `<div class="sec" data-sec="${esc(s.section)}"><div class="row" style="justify-content:space-between"><b>${esc(s.section)}</b>${chip(s.state)}</div>
+      <div class="muted">${esc(s.source)}</div>${s.content ? `<div style="margin-top:8px">${md(s.content)}</div>` : ""}
+      ${["GENERATED"].includes(s.state) || !["DRAFT","READY_FOR_SUBMISSION"].includes(p.status) ? "" : `
+        <textarea class="secText" style="margin-top:8px" placeholder="Write this section yourself (a named human author)…">${s.state==="HUMAN_AUTHORED" ? esc(s.content) : ""}</textarea>
+        <div class="row" style="margin-top:6px"><button class="btn small" data-act="write">Save my text</button>
+        <button class="btn ghost small" data-act="draft">Draft with AI (goes to review)</button><span class="secMsg muted"></span></div>`}</div>`).join("")}
+    <h3>Project details gathered from the hub</h3>
+    <p>${esc(p.project_details.summary)}</p><ul>${p.project_details.objectives.map(o=>`<li>${esc(o)}</li>`).join("")}</ul>
+    ${p.project_details.unstaffable_skill_needs.length ? `<div class="callout AMBER">Skill needs the coalition cannot yet staff: ${p.project_details.unstaffable_skill_needs.map(n=>esc(n.skill+" (level "+n.min_level+")")).join(", ")}</div>` : ""}`;
+  d.scrollIntoView({behavior:"smooth"});
+  $$("#gDetail .sec button[data-act]").forEach(b => b.onclick = async () => {
+    const sec = b.closest(".sec"), msg = sec.querySelector(".secMsg"), who = $("#secWho").value.trim(), name = sec.dataset.sec;
+    try{
+      if(b.dataset.act === "write"){ if(!who){ msg.textContent = "Enter your name first."; return; }
+        await post(`/api/grants/applications/${id}/sections`, {section: name, text: sec.querySelector(".secText").value, author: who}); openApplication(id, "DRAFT"); }
+      else { const r = await post(`/api/grants/applications/${id}/sections/draft`, {section: name, requested_by: who});
+        msg.innerHTML = `Draft #${esc(r.review_id)} is PENDING_REVIEW — approve it on the Human review tab to add it to the packet.`; refreshPending(); loaded.reviews = false; }
+    }catch(err){ msg.textContent = err.message; }
+  });
+  if($("#propSub")) $("#propSub").onclick = async () => { const who = prompt("Your name (requester):"); if(!who) return;
+    try{ const a = await post("/api/actions", {action_type:"SUBMIT_GRANT_APPLICATION", payload:{application_id:id}, requested_by: who});
+      alert(`Queued as action #${a.id}. A named approver must approve it on the Approvals tab.`); loaded.approvals = false; }catch(err){ alert(err.message); } };
+}
+
+// ====================================================================== Resources helpers
+async function openRequest(id){
+  const [r, m] = await Promise.all([api(`/api/resources/requests/${id}`), api(`/api/resources/requests/${id}/matches`)]);
+  const v = r.validation || {checks:[], by_category:[]}; const d = $("#rqDetail"); d.classList.remove("hidden");
+  d.innerHTML = `<div class="row" style="justify-content:space-between"><h2 style="margin:0">#${esc(r.id)} · ${esc(r.title)}</h2>${chip(r.status)}</div>
+    <p class="muted">${esc(hubName(r.hub_id))} · project ${esc(r.project_id)} · ${esc(r.needed_from)} → ${esc(r.needed_to)} · milestones ${esc(r.milestone_ids.join(", ") || "none")} · requested by ${esc(r.requested_by)}</p>
+    <p>${esc(r.justification)}</p>
+    ${table([["Line",(x,i)=>esc(x.category)],["Description",x=>esc(x.description)],["Amount",x=>money(x.amount)],["Skill",x=>x.skill?`${esc(x.skill)} (≥${esc(x.min_level||3)}, ${esc(x.hours_per_week)} h/wk)`:"—"]], r.lines)}
+    <h3>Mandatory budget validation <span class="muted">as of ${esc(v.as_of)}</span></h3>
+    ${table([["Check",x=>`<b>${esc(x.check.replace(/_/g," "))}</b>`],["Result",x=>x.passed?`<span style="color:var(--green)">✓ pass</span>`:`<span style="color:var(--red)">✗ fail</span>`],["Detail",x=>esc(x.detail)]], v.checks)}
+    ${table([["Category",x=>esc(x.category)],["Requested",x=>money(x.requested)],["Remaining before",x=>money(x.remaining_before)],["Remaining after",x=>money(x.remaining_after)],["",x=>x.passed?"✓":"✗"]], v.by_category)}
+    ${why(v.explanation)}
+    ${m.matches.map(mm => `<h3>Candidates for line ${mm.line_index + 1}: ${esc(mm.skill)} (level ≥ ${esc(mm.min_level)}, ${esc(mm.hours_needed)} h/wk)</h3>
+      ${table([["Member",x=>`<b>${esc(x.name)}</b> <span class="muted">${esc(x.member_id)}</span>`],["Hub",x=>esc(hubName(x.hub_id))+(x.same_hub?" ✓":"")],["Level",x=>esc(x.level)],["Free h/wk",x=>esc(x.available_hours)],["Score",x=>`<b>${esc(x.score)}</b>${why(x.explanation)}`]], mm.candidates)}`).join("")}
+    ${r.status === "VALIDATED" ? `<h3>Decision</h3>
+      <div class="form"><label class="f">Approver (named human)<input id="rqWho" placeholder="Full name"></label>
+      ${m.matches.map(mm=>`<label class="f">Assign line ${mm.line_index+1} (${esc(mm.skill)})<select class="rqAssign" data-line="${mm.line_index}"><option value="">— no assignment yet —</option>${mm.candidates.map(c=>`<option value="${esc(c.member_id)}">${esc(c.name)} (score ${esc(c.score)})</option>`).join("")}</select></label>`).join("")}
+      <label class="f wide">Reason (required to reject)<input id="rqReason"></label></div>
+      <div class="row" style="margin-top:10px"><button class="btn gold" id="rqApprove">Approve &amp; release funds</button><button class="btn ghost" id="rqReject">Reject</button><span id="rqMsg" class="muted"></span></div>
+      <p class="gov">Approval re-runs budget validation against the current budget first. If anything changed, approval is blocked.</p>` :
+      r.decided_by ? `<p class="gov">${esc(r.status.toLowerCase())} by <b>${esc(r.decided_by)}</b> ${esc((r.decided_at||"").replace("T"," ").slice(0,19))} UTC${r.decision_reason ? " · " + esc(r.decision_reason) : ""}${r.assignments.length ? " · assigned " + esc(r.assignments.map(a=>a.member_id + " (" + a.skill + ")").join(", ")) : ""}</p>` :
+      r.status === "FAILED_VALIDATION" ? `<div class="row"><button class="btn ghost small" id="rqRevalidate">Re-run validation</button></div>` : ""}`;
+  d.scrollIntoView({behavior:"smooth"});
+  const decide = async approve => { const who = $("#rqWho").value.trim(); if(!who){ $("#rqMsg").textContent = "Enter your name first."; return; }
+    const assignments = $$(".rqAssign").filter(s=>s.value).map(s=>({line_index:+s.dataset.line, member_id:s.value}));
+    try{ await post(`/api/resources/requests/${id}/decision`, {decision: approve ? "approve" : "reject", reviewer: who, reason: $("#rqReason").value.trim(), assignments});
+      await loaders.resources(); openRequest(id); loaded.expertise = false; }
+    catch(err){ $("#rqMsg").textContent = err.message; } };
+  if($("#rqApprove")){ $("#rqApprove").onclick = () => decide(true); $("#rqReject").onclick = () => decide(false); }
+  if($("#rqRevalidate")) $("#rqRevalidate").onclick = async () => { await post(`/api/resources/requests/${id}/validate`, {}); await loaders.resources(); openRequest(id); };
+}
+
+async function openRequestForm(){
+  const f = $("#rqForm"); f.classList.remove("hidden");
+  f.innerHTML = `<h2>New resource request</h2><p class="muted">Validation runs the moment you submit. A failed request shows every reason and can be fixed and resubmitted.</p>
+    <div class="form">
+      <label class="f">Hub<select id="rfHub">${OV.hubs.map(h=>`<option value="${esc(h.id)}">${esc(h.name)}</option>`).join("")}</select></label>
+      <label class="f">Project<select id="rfProj"></select></label>
+      <label class="f">Title<input id="rfTitle" value="Data engineer for forecast feed"></label>
+      <label class="f">Requested by<input id="rfBy" placeholder="Full name"></label>
+      <label class="f">Needed from<input id="rfFrom" type="date" value="2026-11-02"></label>
+      <label class="f">Needed to<input id="rfTo" type="date" value="2026-12-18"></label>
+      <div class="f wide" id="rfMs"></div>
+      <label class="f wide">Lines — one per line: CATEGORY | description | amount | skill (optional) | min level | hours per week
+        <textarea id="rfLines">PERSONNEL | Data engineer, 7 weeks | 14000 | Data Engineering | 3 | 10</textarea></label>
+      <label class="f wide">Justification<textarea id="rfWhy">Supplier training needs the forecast feed extended to the new suppliers.</textarea></label>
+    </div><div class="row" style="margin-top:10px"><button class="btn gold" id="rfSubmit">Submit &amp; validate</button><span id="rfMsg" class="muted"></span></div>`;
+  f.scrollIntoView({behavior:"smooth"});
+  const fillProj = () => { const ps = projects().filter(p=>p.hub_id===$("#rfHub").value); $("#rfProj").innerHTML = ps.map(p=>`<option value="${esc(p.id)}">${esc(p.name)}</option>`).join(""); fillMs(); };
+  const fillMs = async () => { const p = await api(`/api/projects/${$("#rfProj").value}`);
+    $("#rfMs").innerHTML = `<span>Milestones this request serves (at least one)</span>` + p.milestones.map(m=>`<label class="row" style="color:var(--text)"><input type="checkbox" value="${esc(m.id)}"> ${esc(m.name)} <span class="muted">due ${esc(m.due_date)}</span></label>`).join(""); };
+  $("#rfHub").onchange = fillProj; $("#rfProj").onchange = fillMs; fillProj();
+  $("#rfSubmit").onclick = async () => {
+    const lines = $("#rfLines").value.split("\n").filter(l=>l.trim()).map(l=>{ const p = l.split("|").map(x=>x.trim()); const o = {category:p[0].toUpperCase(), description:p[1]||"", amount:p[2]||"0"};
+      if(p[3]){ o.skill = p[3]; o.min_level = +(p[4]||3); o.hours_per_week = p[5]||"0"; } return o; });
+    try{ const r = await post("/api/resources/requests", {hub_id:$("#rfHub").value, project_id:$("#rfProj").value, title:$("#rfTitle").value, requested_by:$("#rfBy").value.trim(),
+        needed_from:$("#rfFrom").value, needed_to:$("#rfTo").value, milestone_ids:$$("#rfMs input:checked").map(x=>x.value), justification:$("#rfWhy").value, lines});
+      f.classList.add("hidden"); await loaders.resources(); openRequest(r.id); }
+    catch(err){ $("#rfMsg").textContent = err.message; }
+  };
+}
+
+// ====================================================================== Reviews
+function draftBlock(id, text, grounded, unverified){
+  return `<div class="callout AMBER"><b>DRAFT · PENDING_REVIEW (#${esc(id)}).</b> This AI output is not validated. A named human must approve, edit or reject it on the Human review tab before it is published.</div>
+    <div class="answer draft">${esc(text)}</div>
+    <div class="gov">Numeric grounding: ${grounded ? "✅ every number traced to an engine result" : "⚠️ unverified numbers: " + esc((unverified||[]).join(", ")) + " (cannot be approved unchanged)"}</div>
+    <div class="row" style="margin-top:8px"><button class="btn goReview">Review it now</button></div>`;
+}
+function bindGoReview(){ $$(".goReview").forEach(b => b.onclick = () => show("reviews")); }
+async function refreshPending(){ try{ const g = await api("/api/governance"); $("#pendingCount").textContent = g.human_validation.pending_review; }catch{} }
+
+async function drawReviews(){
+  const st = $("#rvFilter").value, ag = $("#rvAgent").value;
+  const q = new URLSearchParams(); if(st) q.set("status", st); if(ag) q.set("agent", ag);
+  const rows = await api("/api/reviews?" + q);
+  $("#rvList").innerHTML = rows.map(r => `<div class="rv ${esc(r.status)}" data-id="${r.id}">
+    <div class="row" style="justify-content:space-between"><b>#${esc(r.id)} · ${esc(r.agent)} · ${esc(r.kind.replace(/_/g," "))}${r.subject_id ? " · " + esc(r.subject_id) : ""}</b>${chip(r.status)}</div>
+    <div class="muted">Prompt: ${esc(r.prompt.slice(0,220))}${r.requested_by ? " · requested by " + esc(r.requested_by) : ""} · ${esc(r.model)} · tools: ${esc(r.tools_used.join(", ") || "none")}</div>
+    <div class="gov">${r.grounded ? "✅ All numbers traced to engine results" : "⚠️ Unverified numbers: " + esc(r.unverified_numbers.join(", ")) + ". Edit them out or reject."}</div>
+    <div class="answer ${r.status === "PENDING_REVIEW" ? "draft" : ""}" style="margin-top:8px">${esc(r.ai_output)}</div>
+    ${r.status === "PENDING_REVIEW" ? `
+      <textarea class="rvEdit" style="margin-top:8px" placeholder="Optional: edit the text here, then choose Edit & approve">${esc(r.ai_output)}</textarea>
+      <input class="rvReason" placeholder="Reason (required to reject)" style="width:100%;margin-top:6px">
+      <div class="row" style="margin-top:8px">
+        <button class="btn gold" data-d="approve" ${r.grounded ? "" : "disabled title='Unverified numbers: edit or reject'"}>Approve</button>
+        <button class="btn" data-d="edit">Edit &amp; approve</button>
+        <button class="btn ghost" data-d="reject">Reject</button><span class="rvMsg muted"></span></div>` : `
+      ${r.status === "APPROVED_WITH_EDITS" ? `<div class="muted" style="margin-top:8px">Published (edited) text:</div><div class="answer">${esc(r.final_output)}</div>` : ""}
+      <div class="gov">${esc(r.status.replace(/_/g," ").toLowerCase())} by <b>${esc(r.reviewer)}</b> at ${esc((r.decided_at||"").replace("T"," ").slice(0,19))} UTC${r.reason ? " · reason: " + esc(r.reason) : ""}</div>`}
+  </div>`).join("") || `<p class="muted">Nothing here.</p>`;
+  $$("#rvList button[data-d]").forEach(b => b.onclick = async () => {
+    const card = b.closest(".rv"), msg = card.querySelector(".rvMsg"), reviewer = $("#rvName").value.trim();
+    if(!reviewer){ msg.textContent = "Enter your name as reviewer first."; return; }
+    const body = {decision: b.dataset.d, reviewer, reason: card.querySelector(".rvReason").value.trim() || null};
+    if(b.dataset.d === "edit") body.edited_output = card.querySelector(".rvEdit").value;
+    try{ await post(`/api/reviews/${card.dataset.id}/decision`, body); drawReviews(); refreshPending(); loaded.grants = false; }
+    catch(err){ msg.textContent = err.message; }
+  });
+}
+
+loaders.coalition(); loaded.coalition = true; refreshPending();
+</script>
+</body>
+</html>
