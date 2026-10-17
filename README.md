@@ -12,7 +12,7 @@ Killette Industries is a coalition of highly experienced, multi-skilled professi
 
 Claude orchestrates, explains and drafts. Every number comes from deterministic, tested Python.
 
-> Architected by **Wendell Killette**, Coalition Architect and Founder · **[Agile by Killette](https://agilebykillette.com)**. Companion to the [Equity Compensation Management Agent](https://github.com/bowlingwithmrwendell/equity-comp-agent) and the [PMO Delivery Agent](https://github.com/bowlingwithmrwendell/pmo-delivery-agent). **All data is fictional**, including every funder name.
+> **Killette Industries Coalition** · Architected by **Wendell Killette**, Coalition Architect and Founder. Companion to the [Equity Compensation Management Agent](https://github.com/bowlingwithmrwendell/equity-comp-agent) and the [PMO Delivery Agent](https://github.com/bowlingwithmrwendell/pmo-delivery-agent). **All data is fictional**, including every funder name.
 
 ---
 
