@@ -16,6 +16,7 @@ from typing import Literal
 from fastapi import Depends, FastAPI, Header, HTTPException, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse, PlainTextResponse
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 from sqlalchemy import func
 from sqlalchemy.orm import Session
@@ -48,6 +49,7 @@ app = FastAPI(
                  "Fictional demo data."),
     lifespan=lifespan,
 )
+app.mount("/static", StaticFiles(directory=STATIC), name="static")
 app.add_middleware(CORSMiddleware, allow_origins=config.CORS_ORIGINS,
                    allow_methods=["GET", "POST", "PUT"], allow_headers=["Content-Type"])
 
@@ -340,7 +342,14 @@ def _sub(body: SubmissionIn) -> dict:
 # --- pages and coalition ---------------------------------------------------------------
 
 @app.get("/", include_in_schema=False)
+def landing():
+    """The Killette Industries landing page."""
+    return FileResponse(STATIC / "landing.html")
+
+
+@app.get("/console", include_in_schema=False)
 def console():
+    """The agents console (Coalition, Expertise, Grants, Resources, review and approvals)."""
     return FileResponse(STATIC / "index.html")
 
 

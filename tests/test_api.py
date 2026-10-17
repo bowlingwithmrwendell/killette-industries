@@ -10,7 +10,12 @@ def test_health_and_overview(client):
     o = client.get("/api/overview").json()
     assert [x["id"] for x in o["hubs"]] == ["HUB-GC", "HUB-GL", "HUB-GP"]
     assert o["members_active"] == 16 and o["funding_opportunities"] == 10 and o["grants_awarded"] == 2
-    assert client.get("/").status_code == 200 and client.get("/governance").status_code == 200
+    home = client.get("/")
+    assert home.status_code == 200 and "Stronger together. Greater impact." in home.text
+    assert client.get("/console").status_code == 200 and client.get("/governance").status_code == 200
+    for asset in ("logo.png", "banner.jpg", "killette-industries-overview.jpg"):
+        assert client.get(f"/static/brand/{asset}").status_code == 200
+    assert 'href="/console"' in home.text
 
 
 # =====================================================================================
